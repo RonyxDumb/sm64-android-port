@@ -52,7 +52,7 @@ Il progetto utilizza:
 ### Clonazione
 
 ```bash
-git clone <URL_DEL_TUO_REPOSITORY>
+git clone https://github.com/RonyxDumb/sm64-android-port.git
 cd sm64-port-android-base
 ```
 
