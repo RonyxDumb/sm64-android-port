@@ -1,128 +1,343 @@
 # Super Mario 64 Android Port
-If you want to compile Super Mario 64 for Android on PC you'll probably want to clone [this repo](https://github.com/VDavid003/sm64-port-android-base) instead!
-If you want to compile on Android using [Termux](https://f-droid.org/en/packages/com.termux/) (make sure you use the F-Droid version, as the Google Play version is outdated), follow these instructions in Termux:
 
-**Install dependencies:**
+Port Android di **Super Mario 64**, basato sul progetto decompilato di SM64 e adattato per dispositivi Android tramite **SDL2** e **OpenGL ES**.
+
+Questa versione include modifiche specifiche per Android, controlli touch e correzioni dedicate al rendering, al frame pacing e alla compatibilità con dispositivi moderni.
+
+## Funzionalità
+
+- Port nativo Android di Super Mario 64
+- Rendering tramite OpenGL ES
+- SDL2 per finestra, input e audio
+- Controlli touchscreen
+- Supporto controller
+- Supporto fullscreen
+- Salvataggi su memoria Android
+- Correzioni al frame pacing e al VSync
+- Miglioramenti specifici per dispositivi Android moderni
+- Compatibilità con ARM e ARM64
+
+## Requisiti
+
+Per compilare il progetto è necessaria una copia originale della ROM di **Super Mario 64 USA**.
+
+Il repository non include ROM, asset proprietari o altri file protetti da copyright.
+
+Il file richiesto deve essere chiamato:
+
+```text
+baserom.us.z64
+```
+
+## Compilazione su PC
+
+Per compilare l'APK da Windows è consigliato usare il progetto Android completo.
+
+### Requisiti
+
+Installa:
+
+- Android Studio oppure Android SDK
+- Android NDK
+- Java JDK compatibile con la versione di Gradle del progetto
+- Git
+
+Il progetto utilizza:
+
+- SDL2
+- OpenGL ES
+- NDK Build
+- Gradle
+
+### Clonazione
+
+```bash
+git clone <URL_DEL_TUO_REPOSITORY>
+cd sm64-port-android-base
+```
+
+Se `app/jni/src` è configurato come submodule:
+
+```bash
+git submodule update --init --recursive
+```
+
+Inserisci quindi:
+
+```text
+baserom.us.z64
+```
+
+nella directory richiesta dal sorgente SM64.
+
+### Build APK
+
+Su Windows PowerShell:
+
+```powershell
+.\gradlew assembleDebug
+```
+
+Per una build completamente pulita:
+
+```powershell
+.\gradlew clean
+.\gradlew assembleDebug
+```
+
+L'APK verrà generato normalmente in:
+
+```text
+app/build/outputs/apk/debug/
+```
+
+## Compilazione da Termux
+
+È possibile compilare anche direttamente su Android usando **Termux**.
+
+È consigliata la versione di Termux distribuita tramite F-Droid.
+
+### Installazione dipendenze
+
 ```sh
+pkg update
 pkg install git wget make python getconf zip apksigner clang
 ```
 
-**Clone the repository:**
+### Clonazione
+
 ```sh
-git clone https://github.com/VDavid003/sm64-port-android
+git clone <URL_DEL_TUO_REPOSITORY>
 cd sm64-port-android
 ```
 
-**Copy in your baserom:**
+### Copia della ROM
 
-Do this using your default file manager (on AOSP, you can slide on the left and there will be a "Termux" option there), or using Termux
+Concedi a Termux l'accesso alla memoria:
+
 ```sh
 termux-setup-storage
-cp /sdcard/path/to/your/baserom.z64 ./baserom.us.z64
 ```
 
-**Get SDL includes:**
+Poi copia la ROM:
+
+```sh
+cp /sdcard/percorso/della/baserom.us.z64 ./baserom.us.z64
+```
+
+### SDL
+
+Se necessario:
+
 ```sh
 ./getSDL.sh
 ```
 
-**Build:**
+### Compilazione
+
 ```sh
-# if you have more cores available, you can increase the --jobs parameter
 make --jobs 4
 ```
 
-**Enjoy your apk:**
-```sh
-ls -al build/us_pc/sm64.us.f3dex2e.apk
+Il numero di job può essere aumentato sui dispositivi con più core CPU.
+
+L'APK risultante viene generato nella cartella di build, ad esempio:
+
+```text
+build/us_pc/sm64.us.f3dex2e.apk
 ```
 
-# Super Mario 64 Port
+## Struttura del progetto
 
-- This repo contains a full decompilation of Super Mario 64 (J), (U), and (E) with minor exceptions in the audio subsystem.
-- Naming and documentation of the source code and data structures are in progress.
-- Efforts to decompile the Shindou ROM steadily advance toward a matching build.
-- Beyond Nintendo 64, it can also target Linux and Windows natively.
+Le parti principali del sorgente sono:
 
-This repo does not include all assets necessary for compiling the game.
-A prior copy of the game is required to extract the assets.
+```text
+sm64-port-android
+├── actors
+│   └── modelli, animazioni e display list
+├── assets
+│   └── dati estratti dalla ROM
+├── data
+│   └── script e dati di gioco
+├── include
+│   └── header principali
+├── levels
+│   └── livelli e geo layout
+├── sound
+│   └── sequenze e sistema audio
+├── src
+│   ├── audio
+│   │   └── motore audio
+│   ├── engine
+│   │   └── rendering, collisioni e sistemi interni
+│   ├── game
+│   │   └── gameplay e comportamenti
+│   ├── menu
+│   │   └── title screen e menu
+│   └── pc
+│       ├── audio
+│       ├── controller
+│       └── gfx
+└── tools
+    └── strumenti di build ed estrazione
+```
 
-## Building native executables
+## Android
 
-### Linux
+Le modifiche Android più importanti si trovano principalmente in:
 
-1. Install prerequisites (Ubuntu): `sudo apt install -y git build-essential pkg-config libusb-1.0-0-dev libsdl2-dev`.
-2. Clone the repo: `git clone https://github.com/sm64-port/sm64-port.git`, which will create a directory `sm64-port` and then **enter** it `cd sm64-port`.
-3. Place a Super Mario 64 ROM called `baserom.<VERSION>.z64` into the repository's root directory for asset extraction, where `VERSION` can be `us`, `jp`, or `eu`.
-4. Run `make` to build. Qualify the version through `make VERSION=<VERSION>`. Add `-j4` to improve build speed (hardware dependent based on the amount of CPU cores available).
-5. The executable binary will be located at `build/<VERSION>_pc/sm64.<VERSION>.f3dex2e`.
+```text
+src/pc/controller/
+src/pc/gfx/
+src/pc/pc_main.c
+```
 
-### Windows
+### Controller
 
-1. Install and update MSYS2, following all the directions listed on https://www.msys2.org/.
-2. From the start menu, launch MSYS2 MinGW and install required packages depending on your machine (do **NOT** launch "MSYS2 MSYS"):
-  * 64-bit: Launch "MSYS2 MinGW 64-bit" and install: `pacman -S git make python3 mingw-w64-x86_64-gcc`
-  * 32-bit (will also work on 64-bit machines): Launch "MSYS2 MinGW 32-bit" and install: `pacman -S git make python3 mingw-w64-i686-gcc`
-  * Do **NOT** by mistake install the package called simply `gcc`.
-3. The MSYS2 terminal has a _current working directory_ that initially is `C:\msys64\home\<username>` (home directory). At the prompt, you will see the current working directory in yellow. `~` is an alias for the home directory. You can change the current working directory to `My Documents` by entering `cd /c/Users/<username>/Documents`.
-4. Clone the repo: `git clone https://github.com/sm64-port/sm64-port.git`, which will create a directory `sm64-port` and then **enter** it `cd sm64-port`.
-5. Place a *Super Mario 64* ROM called `baserom.<VERSION>.z64` into the repository's root directory for asset extraction, where `VERSION` can be `us`, `jp`, or `eu`.
-6. Run `make` to build. Qualify the version through `make VERSION=<VERSION>`. Add `-j4` to improve build speed (hardware dependent based on the amount of CPU cores available).
-7. The executable binary will be located at `build/<VERSION>_pc/sm64.<VERSION>.f3dex2e.exe` inside the repository.
+Il port include un sistema di input specifico per Android con supporto per:
 
-#### Troubleshooting
+```text
+controller_sdl.c
+controller_sdl.h
+controller_touchscreen.c
+```
 
-1. If you get `make: gcc: command not found` or `make: gcc: No such file or directory` although the packages did successfully install, you probably launched the wrong MSYS2. Read the instructions again. The terminal prompt should contain "MINGW32" or "MINGW64" in purple text, and **NOT** "MSYS".
-2. If you get `Failed to open baserom.us.z64!` you failed to place the baserom in the repository. You can write `ls` to list the files in the current working directory. If you are in the `sm64-port` directory, make sure you see it here.
-3. If you get `make: *** No targets specified and no makefile found. Stop.`, you are not in the correct directory. Make sure the yellow text in the terminal ends with `sm64-port`. Use `cd <dir>` to enter the correct directory. If you write `ls` you should see all the project files, including `Makefile` if everything is correct.
-4. If you get any error, be sure MSYS2 packages are up to date by executing `pacman -Syu` and `pacman -Su`. If the MSYS2 window closes immediately after opening it, restart your computer.
-5. When you execute `gcc -v`, be sure you see `Target: i686-w64-mingw32` or `Target: x86_64-w64-mingw32`. If you see `Target: x86_64-pc-msys`, you either opened the wrong MSYS start menu entry or installed the incorrect gcc package.
-6. When switching between building for other platforms, run `make -C tools clean` first to allow for the tools to recompile on the new platform. This also helps when switching between shells like WSL and MSYS2.
+I controlli touch vengono gestiti attraverso gli eventi SDL:
 
-### Debugging
+```text
+SDL_FINGERDOWN
+SDL_FINGERMOTION
+SDL_FINGERUP
+```
 
-The code can be debugged using `gdb`. On Linux install the `gdb` package and execute `gdb <executable>`. On MSYS2 install by executing `pacman -S winpty gdb` and execute `winpty gdb <executable>`. The `winpty` program makes sure the keyboard works correctly in the terminal. Also consider changing the `-mwindows` compile flag to `-mconsole` to be able to see stdout/stderr as well as be able to press Ctrl+C to interrupt the program. In the Makefile, make sure you compile the sources using `-g` rather than `-O2` to include debugging symbols. See any online tutorial for how to use gdb.
+### Rendering
 
-## ROM building
+Il backend grafico Android utilizza:
 
-It is possible to build N64 ROMs as well with this repository. See https://github.com/n64decomp/sm64 for instructions.
+- SDL2
+- OpenGL ES
 
-## Project Structure
-	
-	sm64
-	├── actors: object behaviors, geo layout, and display lists
-	├── asm: handwritten assembly code, rom header
-	│   └── non_matchings: asm for non-matching sections
-	├── assets: animation and demo data
-	│   ├── anims: animation data
-	│   └── demos: demo data
-	├── bin: C files for ordering display lists and textures
-	├── build: output directory
-	├── data: behavior scripts, misc. data
-	├── doxygen: documentation infrastructure
-	├── enhancements: example source modifications
-	├── include: header files
-	├── levels: level scripts, geo layout, and display lists
-	├── lib: SDK library code
-	├── rsp: audio and Fast3D RSP assembly code
-	├── sound: sequences, sound samples, and sound banks
-	├── src: C source code for game
-	│   ├── audio: audio code
-	│   ├── buffers: stacks, heaps, and task buffers
-	│   ├── engine: script processing engines and utils
-	│   ├── game: behaviors and rest of game source
-	│   ├── goddard: Mario intro screen
-	│   ├── menu: title screen and file, act, and debug level selection menus
-	│   └── pc: port code, audio and video renderer
-	├── text: dialog, level names, act names
-	├── textures: skybox and generic texture data
-	└── tools: build tools
+Il file principale per la gestione della finestra e del VSync è:
 
-## Contributing
+```text
+src/pc/gfx/gfx_sdl2.c
+```
 
-Pull requests are welcome. For major changes, please open an issue first to
-discuss what you would like to change.
+Il renderer principale si trova invece in:
 
-Run `clang-format` on your code to ensure it meets the project's coding standards.
+```text
+src/pc/gfx/gfx_pc.c
+src/pc/gfx/gfx_opengl.c
+```
 
-Official Discord: https://discord.gg/7bcNTPK
+Il port contiene modifiche specifiche per rendere più stabile il frame pacing su Android e ridurre problemi di stuttering durante l'avvio.
+
+## Frame rate
+
+Super Mario 64 utilizza originariamente una simulazione di gioco a:
+
+```text
+30 Hz
+```
+
+Portare semplicemente il game loop a 60 o 120 Hz aumenta anche la velocità della simulazione.
+
+Per frame rate superiori è quindi necessario separare la **game logic** dal **rendering**.
+
+L'obiettivo del progetto è mantenere la logica originale a 30 Hz e utilizzare interpolazione grafica per ottenere un rendering più fluido sui display moderni.
+
+```text
+30 Hz logic
+      │
+      ├── stato precedente
+      └── stato corrente
+               │
+               ▼
+        interpolazione
+               │
+               ▼
+        60 / 90 / 120 FPS
+```
+
+## Troubleshooting
+
+### Build NDK fallisce
+
+Esegui prima:
+
+```powershell
+.\gradlew clean
+```
+
+e, se necessario, elimina le directory generate:
+
+```text
+app/build
+app/.cxx
+app/obj
+```
+
+Non eliminare i sorgenti.
+
+### `baserom.us.z64` non trovata
+
+Assicurati che la ROM:
+
+```text
+baserom.us.z64
+```
+
+sia nella directory prevista dal Makefile.
+
+### Errori dopo modifiche native
+
+Il progetto contiene codice C compilato tramite NDK.
+
+Dopo modifiche importanti a:
+
+```text
+src/pc/
+src/game/
+src/engine/
+```
+
+è consigliabile eseguire una build pulita.
+
+### Gioco accelerato
+
+Se il gioco gira a 2× o più velocemente, non aumentare direttamente il numero di chiamate a:
+
+```c
+game_loop_one_iteration();
+```
+
+La simulazione deve rimanere a circa 30 Hz.
+
+### Rendering corrotto
+
+Non modificare arbitrariamente:
+
+```c
+glViewport()
+```
+
+o le dimensioni del framebuffer Android.
+
+Viewport, aspect ratio e dimensioni logiche vengono già gestiti dal renderer del port.
+
+## Crediti
+
+Basato sul lavoro di:
+
+- n64decomp/sm64
+- sm64-port/sm64-port
+- VDavid003/sm64-port-android
+- VDavid003/sm64-port-android-base
+
+Questo repository contiene modifiche e adattamenti aggiuntivi specifici per Android.
+
+## Disclaimer
+
+Questo progetto non distribuisce ROM o asset proprietari di Nintendo.
+
+Per compilare il gioco è necessaria una copia legalmente ottenuta di Super Mario 64.
