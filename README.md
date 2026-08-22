@@ -107,7 +107,7 @@ pkg install git wget make python getconf zip apksigner clang
 ### Clonazione
 
 ```sh
-git clone <URL_DEL_TUO_REPOSITORY>
+git clone https://github.com/RonyxDumb/sm64-android-port.git
 cd sm64-port-android
 ```
 
