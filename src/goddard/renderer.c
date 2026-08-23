@@ -2,6 +2,9 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include "gfx_dimensions.h"
+#include "sm64.h"
+
 #ifndef VERSION_EU
 #include "prevent_bss_reordering.h"
 #endif
@@ -237,6 +240,19 @@ static struct DynListBankInfo sDynLists[] = {     // @ 801A8704
 // textures and display list data
 static Gfx gd_texture1_dummy_aligner1[] = { // @ 801A8728
     gsSPEndDisplayList(),
+};
+
+#define GD_ANDROID_BADGE_WIDTH  128
+#define GD_ANDROID_BADGE_HEIGHT 42
+
+#define GD_ANDROID_BADGE_MARGIN_X 16
+#define GD_ANDROID_BADGE_MARGIN_Y 4
+
+#define GD_ANDROID_BADGE_Y \
+    (SCREEN_HEIGHT - GD_ANDROID_BADGE_HEIGHT - GD_ANDROID_BADGE_MARGIN_Y)
+
+ALIGNED8 static u8 gd_texture_android_compatible[] = {
+#include "textures/intro_raw/android_compatible.rgba16.inc.c"
 };
 
 ALIGNED8 static u8 gd_texture_hand_open[] = {
@@ -753,6 +769,24 @@ static Gfx gd_dl_sprite_start_tex_block[] = {
     gsSPEndDisplayList(),
 };
 
+static Gfx gd_dl_android_badge_start[] = {
+    gsDPPipeSync(),
+    gsDPSetCycleType(G_CYC_1CYCLE),
+    gsSPTexture(0x8000, 0x8000, 0, G_TX_RENDERTILE, G_ON),
+
+    gsDPSetAlphaCompare(G_AC_THRESHOLD),
+    gsDPSetBlendColor(0, 0, 0, 1),
+
+    gsDPSetRenderMode(G_RM_AA_ZB_TEX_EDGE, G_RM_NOOP2),
+    gsDPSetCombineMode(G_CC_DECALRGBA, G_CC_DECALRGBA),
+
+    /* IMPORTANT: pixel-perfect, no blur / tile seams */
+    gsDPSetTextureFilter(G_TF_POINT),
+
+    gsDPSetTexturePersp(G_TP_NONE),
+    gsSPEndDisplayList(),
+};
+
 // linker (ROM addresses)
 extern u8 _gd_dynlistsSegmentRomStart[];
 extern u8 _gd_dynlistsSegmentRomEnd[];
@@ -767,6 +801,7 @@ void func_801A1A00(void);
 void gddl_is_loading_shine_dl(s32);
 void func_801A3370(f32, f32, f32);
 void gd_put_sprite(u16 *, s32, s32, s32, s32);
+static void gd_put_sprite_tiled(u16 *sprite, s32 x, s32 y, s32 width, s32 height);
 void reset_cur_dl_indices(void);
 
 // TODO: make a gddl_num_t?
@@ -1348,11 +1383,28 @@ void *gdm_gettestdl(s32 id) {
         case 3:
             setup_timers();
             update_view_and_dl(sMSceneView);
+
             if (sHandView != NULL) {
                 update_view_and_dl(sHandView);
             }
+
             sCurrentGdDl = sMHeadMainDls[gGdFrameBuf];
+
+            gd_put_sprite_tiled(
+                (u16 *) gd_texture_android_compatible,
+
+                GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(
+                    GD_ANDROID_BADGE_WIDTH + GD_ANDROID_BADGE_MARGIN_X
+                ),
+
+                GD_ANDROID_BADGE_Y,
+
+                GD_ANDROID_BADGE_WIDTH,
+                GD_ANDROID_BADGE_HEIGHT
+            );
+
             gSPEndDisplayList(next_gfx());
+
             gddl = sCurrentGdDl;
             sUpdateMarioScene = TRUE;
             break;
@@ -3199,8 +3251,8 @@ void gd_init(void) {
     sDynDlSet1[0] = new_gd_dl(1, 600, 10, 200, 10, 3);
     sDynDlSet1[1] = new_gd_dl(1, 600, 10, 200, 10, 3);
     stop_memtracker("Dynamic DLs");
-    sMHeadMainDls[0] = new_gd_dl(1, 100, 0, 0, 0, 0);
-    sMHeadMainDls[1] = new_gd_dl(1, 100, 0, 0, 0, 0);
+    sMHeadMainDls[0] = new_gd_dl(1, 256, 0, 0, 0, 0);
+    sMHeadMainDls[1] = new_gd_dl(1, 256, 0, 0, 0, 0);
 
     for (i = 0; i < ARRAY_COUNT(D_801BD7C8); i++) {
         D_801BD7C8[i][0] = create_child_gdl(1, sDynDlSet1[0]);
@@ -3488,6 +3540,59 @@ void gd_put_sprite(u16 *sprite, s32 x, s32 y, s32 wx, s32 wy) {
 
     gDPPipeSync(next_gfx());
     gDPSetCycleType(next_gfx(), G_CYC_1CYCLE);
+    gDPSetRenderMode(next_gfx(), G_RM_AA_ZB_OPA_INTER, G_RM_NOOP2);
+    gSPTexture(next_gfx(), 0x8000, 0x8000, 0, G_TX_RENDERTILE, G_OFF);
+}
+
+/*
+ * Draw an RGBA16 sprite of arbitrary dimensions in <=32x32 tiles.
+ * Unlike gd_put_sprite(), this uses the real source row stride, so a
+ * 256x83 PNG can be used directly without rearranging the pixels.
+ */
+static void gd_put_sprite_tiled(u16 *sprite, s32 x, s32 y, s32 width, s32 height) {
+    s32 c, r, tx, ty;
+    s32 tileIndex = 0;
+    static u16 tileBuffers[2][8][32 * 32] __attribute__((aligned(8)));
+
+    gSPDisplayList(
+    next_gfx(),
+    osVirtualToPhysical(gd_dl_android_badge_start)
+    );
+
+    for (r = 0; r < height; r += 32) {
+        s32 tileHeight = MIN(32, height - r);
+
+        for (c = 0; c < width; c += 32) {
+            s32 tileWidth = MIN(32, width - c);
+            u16 *tileBuffer;
+
+            if (tileIndex >= 8) {
+                fatal_printf("Android badge: too many texture tiles");
+            }
+
+            tileBuffer = tileBuffers[gGdFrameBuf & 1][tileIndex++];
+
+            for (ty = 0; ty < tileHeight; ty++) {
+                for (tx = 0; tx < tileWidth; tx++) {
+                    tileBuffer[ty * tileWidth + tx] =
+                        sprite[(r + ty) * width + (c + tx)];
+                }
+            }
+
+            gDPLoadTextureBlock(next_gfx(), tileBuffer, G_IM_FMT_RGBA, G_IM_SIZ_16b,
+                                tileWidth, tileHeight, 0,
+                                G_TX_CLAMP | G_TX_NOMIRROR, G_TX_CLAMP | G_TX_NOMIRROR,
+                                G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+
+            gSPTextureRectangle(next_gfx(),
+                                (x + c) << 2, (y + r) << 2,
+                                (x + c + tileWidth) << 2, (y + r + tileHeight) << 2,
+                                G_TX_RENDERTILE, 0, 0, 1 << 10, 1 << 10);
+        }
+    }
+
+    gDPPipeSync(next_gfx());
+    gDPSetAlphaCompare(next_gfx(), G_AC_NONE);
     gDPSetRenderMode(next_gfx(), G_RM_AA_ZB_OPA_INTER, G_RM_NOOP2);
     gSPTexture(next_gfx(), 0x8000, 0x8000, 0, G_TX_RENDERTILE, G_OFF);
 }

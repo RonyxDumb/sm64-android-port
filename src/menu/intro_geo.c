@@ -65,6 +65,19 @@ const u8 *const *introBackgroundTextureType[] = {
     game_over_texture_table,
 };
 
+static s32 get_widescreen_left_edge(void) {
+    f32 aspectRatio = gfx_current_dimensions.aspect_ratio;
+    f32 virtualWidth;
+
+    if (aspectRatio <= 0.0f) {
+        aspectRatio = 4.0f / 3.0f;
+    }
+
+    virtualWidth = SCREEN_HEIGHT * aspectRatio;
+
+    return (s32)((SCREEN_WIDTH - virtualWidth) * 0.5f);
+}
+
 s8 introBackgroundIndexTable[] = {
     INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO,
     INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO,
@@ -295,8 +308,17 @@ static Gfx *intro_backdrop_fullscreen(s8 *backgroundTable) {
     columnCount = lastColumn - firstColumn + 1;
     tileCount = columnCount * INTRO_BACKDROP_ROWS;
 
-    // Projection + setup + one call per tile + teardown + end.
-    displayList = alloc_display_list((tileCount + 4) * sizeof(*displayList));
+    /*
+     * Projection
+     * + setup
+     * + POINT filter
+     * + one call per tile
+     * + restore BILERP
+     * + teardown
+     * + end
+     */
+    displayList = alloc_display_list((tileCount + 6) * sizeof(*displayList));
+
     if (displayList == NULL) {
         return NULL;
     }
@@ -305,6 +327,12 @@ static Gfx *intro_backdrop_fullscreen(s8 *backgroundTable) {
 
     gSPDisplayList(displayListIter++, &dl_proj_mtx_fullscreen);
     gSPDisplayList(displayListIter++, &title_screen_bg_dl_0A000100);
+
+    /*
+     * Prevent bilinear filtering from sampling across the edges
+     * of the individual 80x80 background tiles.
+     */
+    gDPSetTextureFilter(displayListIter++, G_TF_POINT);
 
     for (row = 0; row < INTRO_BACKDROP_ROWS; ++row) {
         for (column = firstColumn; column <= lastColumn; ++column) {
@@ -323,6 +351,12 @@ static Gfx *intro_backdrop_fullscreen(s8 *backgroundTable) {
             }
         }
     }
+
+    /*
+     * Restore the default filtering so the next parts of the title screen
+     * are not affected.
+     */
+    gDPSetTextureFilter(displayListIter++, G_TF_BILERP);
 
     gSPDisplayList(displayListIter++, &title_screen_bg_dl_0A000190);
     gSPEndDisplayList(displayListIter);

@@ -21,6 +21,7 @@
 #include "engine/geo_layout.h"
 #include "save_file.h"
 #include "level_table.h"
+#include "pc/gfx/gfx_pc.h"
 
 struct SpawnInfo gPlayerSpawnInfos[1];
 struct GraphNode *D_8033A160[0x100];
@@ -108,6 +109,7 @@ void print_intro_text(void) {
 #ifdef VERSION_EU
     s32 language = eu_get_language();
 #endif
+
     if ((gGlobalTimer & 0x1F) < 20) {
         if (gControllerBits == 0) {
 #ifdef VERSION_EU
@@ -117,10 +119,10 @@ void print_intro_text(void) {
 #endif
         } else {
 #ifdef VERSION_EU
-            print_text(20, 20, "START");
+            print_text(GFX_DIMENSIONS_FROM_LEFT_EDGE(8), 20, "START");
 #else
-            print_text_centered(60, 38, "PRESS");
-            print_text_centered(60, 20, "START");
+            print_text(GFX_DIMENSIONS_FROM_LEFT_EDGE(8), 38, "PRESS");
+            print_text(GFX_DIMENSIONS_FROM_LEFT_EDGE(8), 20, "START");
 #endif
         }
     }
