@@ -20,6 +20,11 @@
 #include "profiler.h"
 #include "spawn_object.h"
 
+#ifdef __ANDROID__
+extern void lan_netplay_object_tick(void);
+extern void lan_netplay_on_area_cleared(void);
+#endif
+
 
 /**
  * Flags controlling what debug info is displayed.
@@ -533,6 +538,9 @@ void clear_objects(void) {
     gTHIWaterDrained = 0;
     gTimeStopState = 0;
     gMarioObject = NULL;
+#ifdef __ANDROID__
+    lan_netplay_on_area_cleared();
+#endif
     gMarioCurrentRoom = 0;
 
     for (i = 0; i < 60; i++) {
@@ -665,6 +673,10 @@ void update_objects(UNUSED s32 unused) {
 
     // Update all other objects that haven't been updated yet
     cycleCounts[4] = get_clock_difference(cycleCounts[0]);
+#ifdef __ANDROID__
+    /* Spawn/despawn the visual remote only in its matching level/area. */
+    lan_netplay_object_tick();
+#endif
     update_non_terrain_objects();
 
     // Unload any objects that have been deactivated
