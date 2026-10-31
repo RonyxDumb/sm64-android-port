@@ -21,6 +21,7 @@
 static u8 sAndroidMenuPage = 0; /* 0 title, 1 mode, 2 role, 3 connection */
 static u8 sAndroidMode = 0;     /* 0 single, 1 multiplayer */
 static u8 sAndroidRole = 0;     /* 0 host, 1 join */
+static u8 sAndroidStickNeutral = 1;
 #endif
 
 #define PRESS_START_DEMO_TIMER 800
@@ -160,6 +161,14 @@ s32 intro_default(void) {
 #ifdef __ANDROID__
     {
         u16 pressed = gPlayer1Controller->buttonPressed;
+        s16 stickY = gPlayer1Controller->stickY;
+        u8 axisMove = 0;
+        if (stickY > 35 || stickY < -35) {
+            if (sAndroidStickNeutral) axisMove = 1;
+            sAndroidStickNeutral = 0;
+        } else {
+            sAndroidStickNeutral = 1;
+        }
 
         if (sAndroidMenuPage == 0) {
             print_intro_text();
@@ -178,7 +187,7 @@ s32 intro_default(void) {
             print_text_centered(160, 84, sAndroidMode == 1 ? "> MULTIPLAYER <" : "MULTIPLAYER");
             print_text_centered(160, 44, "A SELECT  B BACK");
 
-            if (pressed & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) {
+            if ((pressed & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) || axisMove) {
                 sAndroidMode ^= 1;
                 play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
             }
@@ -202,7 +211,7 @@ s32 intro_default(void) {
             print_text_centered(160, 84, sAndroidRole == 1 ? "> FIND GAME <" : "FIND GAME");
             print_text_centered(160, 44, "SAME WIFI OR HOTSPOT");
             print_text_centered(160, 22, "A SELECT  B BACK");
-            if (pressed & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) {
+            if ((pressed & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) || axisMove) {
                 sAndroidRole ^= 1;
                 play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
             }
