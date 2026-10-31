@@ -1,0 +1,22 @@
+name: Android LAN transport smoke
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/pc/netplay_lan.*'
+      - '.github/workflows/netplay-lan-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  compile-transport:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Android socket backend without ROM assets
+        run: |
+          gcc -std=gnu11 -Wall -Wextra -Werror -D__ANDROID__ \
+            -Isrc/pc -c src/pc/netplay_lan.c -o /tmp/netplay-android.o
+      - name: Compile non-Android stub without ROM assets
+        run: |
+          gcc -std=gnu11 -Wall -Wextra -Werror \
+            -Isrc/pc -c src/pc/netplay_lan.c -o /tmp/netplay-stub.o
