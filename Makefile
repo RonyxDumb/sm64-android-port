@@ -36,7 +36,7 @@ ifeq ($(TARGET_N64),0)
     ifeq ($(OS),Windows_NT)
       TARGET_WINDOWS := 1
     else
-    ifneq ($(shell which termux-setup-storage),)
+    ifneq ($(shell command -v termux-setup-storage 2>/dev/null),)
       TARGET_ANDROID := 1
       ifeq ($(shell dpkg -s apksigner | grep Version | sed "s/Version: //"),0.7-2)
         OLD_APKSIGNER := 1
@@ -178,7 +178,7 @@ ifneq ($(MAKECMDGOALS),distclean)
 # Make sure assets exist
 NOEXTRACT ?= 0
 ifeq ($(NOEXTRACT),0)
-DUMMY != ./extract_assets.py $(VERSION) >&2 || echo FAIL
+DUMMY != python3 extract_assets.py $(VERSION) >&2 || echo FAIL
 ifeq ($(DUMMY),FAIL)
   $(error Failed to extract assets)
 endif
@@ -379,7 +379,7 @@ endif
 # check that either QEMU_IRIX is set or qemu-irix package installed
 ifeq ($(COMPILER),ido)
   ifndef QEMU_IRIX
-    QEMU_IRIX := $(shell which qemu-irix 2>/dev/null)
+    QEMU_IRIX := $(shell command -v qemu-irix 2>/dev/null)
     ifeq (, $(QEMU_IRIX))
       $(error Please install qemu-irix package or set QEMU_IRIX env var to the full qemu-irix binary path)
     endif
@@ -464,19 +464,24 @@ ifeq ($(TARGET_LINUX),1)
   PLATFORM_LDFLAGS := -lm -lpthread `pkg-config --libs libusb-1.0` -lasound -lpulse -no-pie
 endif
 ifeq ($(TARGET_ANDROID),1)
-  DUMMY != uname -m
-  ifneq ($(shell uname -m | grep "i.86"),)
-    ARCH_APK := x86
-  else
-  ifeq ($(shell uname -m),x86_64)
-    ARCH_APK := x86_64
-  else
-  ifeq ($(shell getconf LONG_BIT),64)
-    ARCH_APK := arm64-v8a
-  else
-    ARCH_APK := armeabi-v7a
-  endif
-  endif
+  # The Termux userspace architecture determines which prebuilt SDL2/hidapi
+  # libraries are compatible with the native game binary. Do not use getconf:
+  # it is not installed by default on Termux, and silently selecting 32-bit
+  # ARM libraries for an aarch64 build makes the final link fail.
+  # Allow ARCH_APK=... to override detection for custom toolchains.
+  ifndef ARCH_APK
+    ANDROID_MACHINE := $(shell uname -m)
+    ifneq ($(filter aarch64 arm64,$(ANDROID_MACHINE)),)
+      ARCH_APK := arm64-v8a
+    else ifeq ($(ANDROID_MACHINE),x86_64)
+      ARCH_APK := x86_64
+    else ifneq ($(filter i386 i486 i586 i686 x86,$(ANDROID_MACHINE)),)
+      ARCH_APK := x86
+    else ifneq ($(filter arm armv6l armv7l armv8l,$(ANDROID_MACHINE)),)
+      ARCH_APK := armeabi-v7a
+    else
+      $(error Unsupported Android architecture '$(ANDROID_MACHINE)'; set ARCH_APK manually)
+    endif
   endif
   PLATFORM_CFLAGS  := -fPIC
   PLATFORM_LDFLAGS := -L./android/lib/$(ARCH_APK)/ -shared
@@ -555,7 +560,7 @@ LOADER = loader64
 LOADER_FLAGS = -vwf
 SHA1SUM = sha1sum
 
-ifeq (, $(shell which armips 2>/dev/null))
+ifeq (, $(shell command -v armips 2>/dev/null))
   RSPASM := $(TOOLS_DIR)/armips
 else
   RSPASM = armips
@@ -931,11 +936,14 @@ $(APK): $(EXE) $(APK_FILES)
 
 ifeq ($(OLD_APKSIGNER),1)
 $(APK_SIGNED): $(APK)
+	@command -v apksigner >/dev/null 2>&1 || { echo "Missing apksigner (Termux: pkg install apksigner)" >&2; exit 1; }
 	apksigner $(BUILD_DIR)/keystore $< $@
 else
 $(APK_SIGNED): $(APK)
+	@command -v apksigner >/dev/null 2>&1 || { echo "Missing apksigner (Termux: pkg install apksigner)" >&2; exit 1; }
 	cp $< $@
 	apksigner sign --cert certificate.pem --key key.pk8 $@
+	apksigner verify $@
 endif
 
 $(EXE): $(O_FILES) $(MIO0_FILES:.mio0=.o) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES) android/lib/$(ARCH_APK)/libSDL2.so android/lib/$(ARCH_APK)/libhidapi.so

@@ -1,5 +1,10 @@
 #include <stdlib.h>
 
+#ifdef __ANDROID__
+#include <errno.h>
+#include <sys/stat.h>
+#endif
+
 #ifdef TARGET_WEB
 #include <emscripten.h>
 #include <emscripten/html5.h>
@@ -144,8 +149,6 @@ static void on_fullscreen_changed(bool is_now_fullscreen) {
 #ifdef __ANDROID__
 extern const char* SDL_AndroidGetInternalStoragePath();
 extern const char* SDL_AndroidGetExternalStoragePath();
-extern int errno;
-
 //From sm64ex
 bool fs_sys_copy_file(const char *oldname, const char *newname) {
     uint8_t buf[2048];
@@ -162,32 +165,67 @@ bool fs_sys_copy_file(const char *oldname, const char *newname) {
     bool ret = true;
     size_t rx;
     while ((rx = fread(buf, 1, sizeof(buf), fin)) > 0) {
-        if (!fwrite(buf, rx, 1, fout)) {
+        if (fwrite(buf, 1, rx, fout) != rx) {
             ret = false;
             break;
         }
     }
 
-    fclose(fout);
+    if (ferror(fin)) {
+        ret = false;
+    }
+    if (fclose(fout) != 0) {
+        ret = false;
+    }
     fclose(fin);
 
+    if (!ret) {
+        remove(newname); // Do not leave a partial save that blocks retry.
+    }
     return ret;
 }
 
 void move_save_to_new_dir() {
-    char userdir[256];
-    snprintf(userdir, sizeof(userdir), "%s/user", SDL_AndroidGetExternalStoragePath());
-    if (stat(userdir, NULL) == -1) {
-        mkdir(userdir, 0770);
+    const char *external_storage = SDL_AndroidGetExternalStoragePath();
+    const char *internal_storage = SDL_AndroidGetInternalStoragePath();
+    if (!external_storage || !internal_storage) {
+        return;
     }
+
+    char userdir[256];
     char original_loc[256];
     char new_loc[256];
-    snprintf(original_loc, sizeof(original_loc), "%s/sm64_save_file.bin", SDL_AndroidGetInternalStoragePath());
-    snprintf(new_loc, sizeof(new_loc), "%s/user/sm64_save_file.bin", SDL_AndroidGetExternalStoragePath());
-    //Detecting if the new file exists doesn't work, so let's just delete the old one and let the copy fail.
-    //Moving the file with rename is broken as well
-    fs_sys_copy_file(original_loc, new_loc);
-    remove(original_loc);
+    int len = snprintf(userdir, sizeof(userdir), "%s/user", external_storage);
+    if (len < 0 || (size_t)len >= sizeof(userdir)) {
+        return;
+    }
+
+    struct stat dir_info;
+    if (stat(userdir, &dir_info) == -1) {
+        if (errno != ENOENT || mkdir(userdir, 0770) != 0) {
+            return;
+        }
+    } else if (!S_ISDIR(dir_info.st_mode)) {
+        return;
+    }
+
+    len = snprintf(original_loc, sizeof(original_loc), "%s/sm64_save_file.bin", internal_storage);
+    if (len < 0 || (size_t)len >= sizeof(original_loc)) {
+        return;
+    }
+    len = snprintf(new_loc, sizeof(new_loc), "%s/user/sm64_save_file.bin", external_storage);
+    if (len < 0 || (size_t)len >= sizeof(new_loc)) {
+        return;
+    }
+
+    // Never overwrite an existing migrated save. Keep the original unless
+    // the destination is absent and the complete copy succeeds.
+    if (stat(new_loc, &dir_info) == 0 || errno != ENOENT) {
+        return;
+    }
+    if (fs_sys_copy_file(original_loc, new_loc)) {
+        remove(original_loc);
+    }
 }
 #endif
 

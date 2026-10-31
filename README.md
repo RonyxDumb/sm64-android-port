@@ -29,130 +29,116 @@ Il file richiesto deve essere chiamato:
 baserom.us.z64
 ```
 
-## Compilazione su PC
+## Compilazione APK da Windows
 
-Per compilare l'APK da Windows è consigliato usare il progetto Android completo.
+Il codice di questo repository e il progetto Gradle Android sono separati.
+Utilizza [sm64-port-android-base](https://github.com/RonyxDumb/sm64-port-android-base)
+per generare l'APK con SDK/NDK, JDK 11 e Gradle 7.1.
 
-### Requisiti
-
-Installa:
-
-- Android Studio oppure Android SDK
-- Android NDK
-- Java JDK compatibile con la versione di Gradle del progetto
-- Git
-
-Il progetto utilizza:
-
-- SDL2
-- OpenGL ES
-- NDK Build
-- Gradle
-
-### Clonazione
-
-```bash
-git clone https://github.com/RonyxDumb/sm64-android-port.git
+```sh
+git clone --recursive https://github.com/RonyxDumb/sm64-port-android-base.git
 cd sm64-port-android-base
+git -C app/jni/src fetch https://github.com/RonyxDumb/sm64-android-port.git main
+git -C app/jni/src checkout --detach FETCH_HEAD
 ```
 
-Se `app/jni/src` è configurato come submodule:
+Inserisci una ROM USA compatibile, ottenuta legalmente, in
+`app/jni/src/baserom.us.z64`. Segui la [guida Windows del progetto base](https://github.com/RonyxDumb/sm64-port-android-base/blob/master/SETUP.md)
+per SDL2, MSYS2, NDK e Gradle, poi genera l'APK con `gradlew.bat assembleDebug`.
 
-```bash
-git submodule update --init --recursive
-```
+**Nota:** il submodule predefinito di `sm64-port-android-base` punta a
+`sm64-port-android`, non a questo fork. I due comandi `git -C` qui sopra
+servono a selezionare esplicitamente i sorgenti di `sm64-android-port`.
 
-Inserisci quindi:
+## Compilazione APK direttamente su Android con Termux
 
-```text
-baserom.us.z64
-```
+Utilizza [Termux da F-Droid](https://f-droid.org/packages/com.termux/)
+e mantieni il progetto nella home di Termux (non in `/sdcard`, che non
+consente la normale esecuzione dei programmi compilati).
 
-nella directory richiesta dal sorgente SM64.
-
-### Build APK
-
-Su Windows PowerShell:
-
-```powershell
-.\gradlew assembleDebug
-```
-
-Per una build completamente pulita:
-
-```powershell
-.\gradlew clean
-.\gradlew assembleDebug
-```
-
-L'APK verrà generato normalmente in:
-
-```text
-app/build/outputs/apk/debug/
-```
-
-## Compilazione da Termux
-
-È possibile compilare anche direttamente su Android usando **Termux**.
-
-È consigliata la versione di Termux distribuita tramite F-Droid.
-
-### Installazione dipendenze
+### Dipendenze
 
 ```sh
-pkg update
-pkg install git wget make python getconf zip apksigner clang
+pkg update && pkg upgrade -y
+pkg install -y git wget unzip make python zip apksigner clang libglvnd libglvnd-dev
 ```
 
-### Clonazione
+Gli header OpenGL ES devono essere disponibili, in particolare
+`$PREFIX/include/GLES2/gl2platform.h`; altrimenti il compilatore segnala
+`GLES2/gl2platform.h file not found`.
+
+Il Makefile non richiede più `which` o `getconf` per la build Termux:
+riconosce `aarch64` come `arm64-v8a` e usa direttamente `python3` per
+l'estrazione degli asset.
+
+### Sorgenti, ROM e SDL2
 
 ```sh
 git clone https://github.com/RonyxDumb/sm64-android-port.git
-cd sm64-port-android
-```
-
-### Copia della ROM
-
-Concedi a Termux l'accesso alla memoria:
-
-```sh
+cd sm64-android-port
 termux-setup-storage
+cp ~/storage/downloads/baserom.us.z64 ./baserom.us.z64
+bash getSDL.sh
 ```
 
-Poi copia la ROM:
+La ROM deve corrispondere alla regione selezionata (`VERSION=us`) e
+superare la verifica SHA-1 del progetto. Non caricarla su GitHub.
+
+### Compilazione consigliata (memoria limitata)
 
 ```sh
-cp /sdcard/percorso/della/baserom.us.z64 ./baserom.us.z64
+bash tools/build-termux.sh
 ```
 
-### SDL
-
-Se necessario:
+Lo script verifica le dipendenze principali, prepara SDL2 se necessario,
+esegue `make -j1 VERSION=us` per ridurre il consumo di RAM, e verifica la
+firma APK. Si può anche eseguire direttamente:
 
 ```sh
-./getSDL.sh
+make -j1 VERSION=us
 ```
 
-### Compilazione
+Il Makefile sceglie automaticamente `arm64-v8a` sui dispositivi Termux
+`aarch64`. In caso di toolchain personalizzate puoi passare
+`ARCH_APK=arm64-v8a`. Non è necessario eseguire `make clean` per riprendere
+una compilazione interrotta.
 
-```sh
-make --jobs 4
-```
-
-Il numero di job può essere aumentato sui dispositivi con più core CPU.
-
-L'APK risultante viene generato nella cartella di build, ad esempio:
+Se termina correttamente, il file firmato è:
 
 ```text
 build/us_pc/sm64.us.f3dex2e.apk
 ```
+
+Per verificarlo e copiarlo nei Download:
+
+```sh
+apksigner verify --verbose build/us_pc/sm64.us.f3dex2e.apk
+cp build/us_pc/sm64.us.f3dex2e.apk ~/storage/downloads/SM64-Android.apk
+```
+
+### Errori affrontati
+
+| Errore | Soluzione |
+| --- | --- |
+| `which: No such file or directory` | Il Makefile usa `command -v`, disponibile nella shell. |
+| `extract_assets.py: Permission denied` | L'estrazione ora richiama `python3` direttamente. |
+| `stat` / `mkdir` non dichiarate | Header POSIX e uso di `struct stat` corretti. |
+| `GLES2/gl2platform.h file not found` | Installa `libglvnd-dev` e verifica l'header. |
+| Librerie `armeabi-v7a` incompatibili con `aarch64` | Rilevamento ABI corretto; override `ARCH_APK` disponibile. |
+| `apksigner: No such file or directory` | Installa `apksigner`; il Makefile ora dà un errore esplicito e verifica la firma. |
+| `getconf: No such file or directory` | Il rilevamento Android non dipende più da `getconf`. |
+| `Killed` durante `mario.c` | Possibile esaurimento RAM: usa `-j1` e chiudi le app pesanti. |
+
+**Limite:** `Killed` può dipendere dal limite di memoria imposto da Android,
+anche con un singolo processo; non è un errore C risolvibile garantendo solo
+`-j1`. Una firma APK valida non garantisce che il gioco funzioni in runtime.
 
 ## Struttura del progetto
 
 Le parti principali del sorgente sono:
 
 ```text
-sm64-port-android
+sm64-android-port
 ├── actors
 │   └── modelli, animazioni e display list
 ├── assets
