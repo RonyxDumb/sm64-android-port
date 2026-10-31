@@ -18,6 +18,13 @@
 #include "print.h"
 #include "segment2.h"
 #include "segment_symbols.h"
+
+#ifdef __ANDROID__
+#include "game/area.h"
+#include "game/level_update.h"
+#include "game/object_list_processor.h"
+#include "pc/netplay_lan.h"
+#endif
 #include "thread6.h"
 #include <prevent_bss_reordering.h>
 
@@ -668,7 +675,24 @@ void game_loop_one_iteration(void) {
         audio_game_loop_tick();
         config_gfx_pool();
         read_controller_inputs();
+#ifdef __ANDROID__
+        /* Main-thread network polling: no blocking sockets in the game loop. */
+        lan_net_tick();
+#endif
         levelCommandAddr = level_script_execute(levelCommandAddr);
+#ifdef __ANDROID__
+        if (lan_net_status() == LAN_NET_PAIRED && gMarioObject != NULL && gMarioState != NULL) {
+            struct LanPlayerState local;
+            local.x = gMarioState->pos[0];
+            local.y = gMarioState->pos[1];
+            local.z = gMarioState->pos[2];
+            local.yaw = gMarioState->faceAngle[1];
+            local.level = (u8)gCurrLevelNum;
+            local.area = (u8)gCurrAreaIndex;
+            local.action = gMarioState->action;
+            lan_net_send_player(&local);
+        }
+#endif
         display_and_vsync();
 
         // when debug info is enabled, print the "BUF %d" information.
