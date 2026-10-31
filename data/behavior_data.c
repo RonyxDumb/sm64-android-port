@@ -6107,3 +6107,15 @@ const BehaviorScript bhvIntroScene[] = {
 };
 
 
+
+#ifdef __ANDROID__
+/* The networked visual avatar has no physics or collision side effects. */
+extern void bhv_lan_remote_mario_loop(void);
+const BehaviorScript bhvLanRemoteMario[] = {
+    BEGIN(OBJ_LIST_GENACTOR),
+    OR_INT(oFlags, OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE),
+    BEGIN_LOOP(),
+        CALL_NATIVE(bhv_lan_remote_mario_loop),
+    END_LOOP(),
+};
+#endif
