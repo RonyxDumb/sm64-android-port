@@ -5,7 +5,7 @@ LDFLAGS := -lm
 PROGRAMS := n64graphics n64graphics_ci mio0 n64cksum textconv patch_libultra_math aifc_decode aiff_extract_codebook vadpcm_enc tabledesign extract_data_for_mio skyconv
 
 # if armips is not found on the system, build it in tools
-ifeq (, $(shell which armips 2> /dev/null))
+ifeq (, $(shell command -v armips 2> /dev/null))
 CXX_PROGRAMS += armips
 endif
 
@@ -64,5 +64,9 @@ $(1): $($1_SOURCES)
 endef
 
 $(foreach p,$(PROGRAMS),$(eval $(call COMPILE,$(p))))
+
+# When building with -j, the linker must wait for bundled libaudiofile.
+# Merely listing the library before PROGRAMS in 'all' does not enforce order.
+tabledesign: $(LIBAUDIOFILE)
 
 .PHONY: all clean default
