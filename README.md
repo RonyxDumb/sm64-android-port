@@ -168,6 +168,21 @@ sm64-android-port
     └── strumenti di build ed estrazione
 ```
 
+## Multiplayer locale Android (prototipo)
+
+Il port include ora un **menu Single Player / Multiplayer** in stile N64,
+con opzioni Host / Join per due telefoni sulla stessa rete Wi-Fi o tramite
+hotspot locale (non servono dati mobili). La discovery utilizza pacchetti
+broadcast UDP sulla porta `45565`, quindi alcuni hotspot possono bloccarla.
+
+Il modulo di rete e un avatar remoto sperimentale sono presenti nei sorgenti.
+**Non è ancora un multiplayer cooperativo completo né verificato su due telefoni**:
+mancano sincronizzazione di nemici, stelle, salvataggi, warp e animazioni remote;
+anche Wi-Fi Direct e Nearby Connections non sono ancora implementati.
+
+Per l'architettura, le limitazioni e la procedura di prova consulta
+[Multiplayer locale Android](docs/android-local-multiplayer.md).
+
 ## Android
 
 Le modifiche Android più importanti si trovano principalmente in:
