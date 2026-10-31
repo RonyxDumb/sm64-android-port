@@ -543,4 +543,8 @@ extern const BehaviorScript bhvEndBirds2[];
 extern const BehaviorScript bhvIntroScene[];
 extern const BehaviorScript bhvUnusedFakeStar[];
 
+#ifdef __ANDROID__
+extern const BehaviorScript bhvLanRemoteMario[];
+#endif
+
 #endif // BEHAVIOR_DATA_H
