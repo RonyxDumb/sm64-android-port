@@ -14,6 +14,15 @@
 #include "seq_ids.h"
 #include "sm64.h"
 
+#ifdef __ANDROID__
+#include "pc/netplay_lan.h"
+
+/* Mode selection is confined to Android: other targets retain their title. */
+static u8 sAndroidMenuPage = 0; /* 0 title, 1 mode, 2 role, 3 connection */
+static u8 sAndroidMode = 0;     /* 0 single, 1 multiplayer */
+static u8 sAndroidRole = 0;     /* 0 host, 1 join */
+#endif
+
 #define PRESS_START_DEMO_TIMER 800
 
 #define STUB_LEVEL(textname, _1, _2, _3, _4, _5, _6, _7, _8) textname,
@@ -147,6 +156,93 @@ s32 intro_default(void) {
         D_U_801A7C34 = 0;
     }
 #endif
+
+#ifdef __ANDROID__
+    {
+        u16 pressed = gPlayer1Controller->buttonPressed;
+
+        if (sAndroidMenuPage == 0) {
+            print_intro_text();
+            if (pressed & (A_BUTTON | START_BUTTON)) {
+                sAndroidMenuPage = 1;
+                gDemoCountdown = 0;
+                play_sound(SOUND_MENU_STAR_SOUND, gDefaultSoundArgs);
+            }
+            return 0;
+        }
+
+        gDemoCountdown = 0;
+        if (sAndroidMenuPage == 1) {
+            print_text_centered(160, 140, "SELECT GAME MODE");
+            print_text_centered(160, 108, sAndroidMode == 0 ? "> SINGLE PLAYER <" : "SINGLE PLAYER");
+            print_text_centered(160, 84, sAndroidMode == 1 ? "> MULTIPLAYER <" : "MULTIPLAYER");
+            print_text_centered(160, 44, "A SELECT  B BACK");
+
+            if (pressed & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) {
+                sAndroidMode ^= 1;
+                play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+            }
+            if (pressed & B_BUTTON) sAndroidMenuPage = 0;
+            if (pressed & (A_BUTTON | START_BUTTON)) {
+                play_sound(SOUND_MENU_STAR_SOUND, gDefaultSoundArgs);
+                if (sAndroidMode == 0) {
+                    lan_net_stop();
+                    sAndroidMenuPage = 0;
+                    sp1C = 100 + gDebugLevelSelect;
+#ifndef VERSION_JP
+                    D_U_801A7C34 = 1;
+#endif
+                } else {
+                    sAndroidMenuPage = 2;
+                }
+            }
+        } else if (sAndroidMenuPage == 2) {
+            print_text_centered(160, 140, "LOCAL MULTIPLAYER");
+            print_text_centered(160, 108, sAndroidRole == 0 ? "> CREATE GAME <" : "CREATE GAME");
+            print_text_centered(160, 84, sAndroidRole == 1 ? "> FIND GAME <" : "FIND GAME");
+            print_text_centered(160, 44, "SAME WIFI OR HOTSPOT");
+            print_text_centered(160, 22, "A SELECT  B BACK");
+            if (pressed & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) {
+                sAndroidRole ^= 1;
+                play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+            }
+            if (pressed & B_BUTTON) sAndroidMenuPage = 1;
+            if (pressed & (A_BUTTON | START_BUTTON)) {
+                if ((sAndroidRole == 0 ? lan_net_start_host() : lan_net_start_join()) == 0) {
+                    sAndroidMenuPage = 3;
+                    play_sound(SOUND_MENU_STAR_SOUND, gDefaultSoundArgs);
+                } else {
+                    sAndroidMenuPage = 3; /* Show the error and allow back. */
+                }
+            }
+        } else {
+            int status = lan_net_status();
+            print_text_centered(160, 140, sAndroidRole == 0 ? "HOST GAME" : "FIND GAME");
+            if (status == LAN_NET_PAIRED) {
+                print_text_centered(160, 100, "CONNECTED");
+                print_text_centered(160, 74, "START TO CONTINUE");
+                if (pressed & (A_BUTTON | START_BUTTON)) {
+                    sAndroidMenuPage = 0;
+                    sp1C = 100 + gDebugLevelSelect;
+#ifndef VERSION_JP
+                    D_U_801A7C34 = 1;
+#endif
+                }
+            } else if (status == LAN_NET_ERROR) {
+                print_text_centered(160, 100, "NETWORK ERROR");
+                print_text_centered(160, 74, "CHECK WIFI");
+            } else {
+                print_text_centered(160, 100, "SEARCHING");
+                print_text_centered(160, 74, "SAME WIFI OR HOTSPOT");
+            }
+            print_text_centered(160, 38, "B TO CANCEL");
+            if (pressed & B_BUTTON) {
+                lan_net_stop();
+                sAndroidMenuPage = 2;
+            }
+        }
+    }
+#else
     print_intro_text();
 
     if (gPlayer1Controller->buttonPressed & START_BUTTON) {
@@ -156,6 +252,7 @@ s32 intro_default(void) {
         D_U_801A7C34 = 1;
 #endif
     }
+#endif
     return run_press_start_demo_timer(sp1C);
 }
 
