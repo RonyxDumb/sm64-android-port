@@ -1,6 +1,3 @@
-#ifdef __ANDROID__
-#include "pc/netplay_lan.h"
-#endif
 #include <PR/ultratypes.h>
 
 #include "audio/external.h"
@@ -419,20 +416,6 @@ s32 lvl_init_act_selector_values_and_stars(UNUSED s32 arg, UNUSED s32 unused) {
  * Also updates objects and returns act number selected after is chosen.
  */
 s32 lvl_update_obj_and_load_act_button_actions(UNUSED s32 arg, UNUSED s32 unused) {
-#ifdef __ANDROID__
-    if (lan_net_status() == LAN_NET_PAIRED && !lan_net_is_host()) {
-        struct LanPlayerState peer;
-        /* Wait until the host loads this course and selects its mission. */
-        area_update_objects();
-        sActSelectorMenuTimer++;
-        if (lan_net_read_peer(&peer) && peer.level == (u8)gCurrLevelNum
-            && peer.act >= 1 && peer.act <= 6) {
-            gDialogCourseActNum = peer.act;
-            return peer.act;
-        }
-        return 0;
-    }
-#endif
     if (sActSelectorMenuTimer >= 11) {
         // If any of these buttons are pressed, play sound and go to course act
 #ifndef VERSION_EU

@@ -176,11 +176,13 @@ permette di scegliere Single Player o Multiplayer, quindi Wi-Fi/hotspot oppure
 il secondo giocatore Luigi con mesh e texture adattate da `showfloor-nds`.
 
 Sono implementati avvio confermato da entrambi, replica di posizione e animazioni
-indipendenti, destinazioni warp dell'host e stelle/chiavi raccolte nella sessione.
+indipendenti e stelle/chiavi raccolte nella sessione. Ogni giocatore sceglie
+liberamente livelli e missioni, senza seguire l'host. Il file D offre 120 stelle
+e accessi sbloccati; A/B/C restano disponibili per il normale avanzamento.
 I test automatici del trasporto UDP e le compilazioni C/Java non sostituiscono una
 prova su due telefoni. **La cooperativa completa resta da ultimare**: nemici e
 oggetti dinamici simulano ancora localmente, mancano interazioni fra i giocatori
-e vanno verificati tutti i percorsi di cambio area, morte e rientro.
+e vanno collaudate le ricomparse dell’avatar dopo cambi area, morte e rientro.
 
 Procedura, verifiche e limiti: [Multiplayer locale Android](docs/android-local-multiplayer.md).
 

@@ -28,10 +28,6 @@
 #include "level_table.h"
 #include "course_table.h"
 #include "thread6.h"
-#ifdef __ANDROID__
-#include "pc/netplay_lan.h"
-static u32 sAppliedNetworkWarp;
-#endif
 
 #define PLAY_MODE_NORMAL 0
 #define PLAY_MODE_PAUSED 2
@@ -627,9 +623,6 @@ void initiate_warp(s16 destLevel, s16 destArea, s16 destWarpNode, s32 arg3) {
     sWarpDest.areaIdx = destArea;
     sWarpDest.nodeId = destWarpNode;
     sWarpDest.arg = arg3;
-#ifdef __ANDROID__
-    lan_net_publish_warp(destLevel, destArea, destWarpNode, arg3, gCurrActNum);
-#endif
 }
 
 // From Surface 0xD3 to 0xFC
@@ -973,27 +966,6 @@ s32 play_mode_normal(void) {
         }
     }
 
-#ifdef __ANDROID__
-    {
-        struct LanWarpState warp;
-        struct LanPlayerState peer;
-        if (lan_net_status() == LAN_NET_OFF) sAppliedNetworkWarp = 0;
-        if (lan_net_read_warp(&warp) && warp.serial != sAppliedNetworkWarp
-            && lan_net_read_peer(&peer) && peer.level == warp.level && peer.area == warp.area
-            && !gWarpTransition.isActive && sDelayedWarpOp == WARP_OP_NONE) {
-            s16 previousAct = gCurrActNum;
-            sAppliedNetworkWarp = warp.serial;
-            gCurrActNum = peer.act;
-            initiate_warp(warp.level, warp.area, warp.node, warp.arg);
-            if (previousAct != gCurrActNum) sWarpDest.type = WARP_TYPE_CHANGE_LEVEL;
-            if (sWarpDest.type == WARP_TYPE_CHANGE_LEVEL) {
-                level_set_transition(0, NULL);
-                set_play_mode(PLAY_MODE_CHANGE_LEVEL);
-                return 0;
-            }
-        }
-    }
-#endif
     warp_area();
     check_instant_warp();
 
@@ -1284,9 +1256,6 @@ s32 lvl_init_from_save_file(UNUSED s16 arg0, s32 levelNum) {
 #endif
     sWarpDest.type = WARP_TYPE_NOT_WARPING;
     sDelayedWarpOp = WARP_OP_NONE;
-#ifdef __ANDROID__
-    sAppliedNetworkWarp = 0;
-#endif
     gNeverEnteredCastle = !save_file_exists(gCurrSaveFileNum - 1);
 
     gCurrLevelNum = levelNum;

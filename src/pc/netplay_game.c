@@ -1,7 +1,7 @@
 /*
  * Two-player avatar replication for Android local play.
- * Position/animation are client-owned. Host warp destinations and session-earned
- * stars/keys are replicated separately; dynamic actors still simulate locally.
+ * Position, animation and level travel are client-owned. Session-earned stars
+ * and keys are replicated separately; dynamic actors still simulate locally.
  */
 #ifdef __ANDROID__
 #include <math.h>

@@ -16,4 +16,5 @@ cat "$build/host.log" "$build/guest.log"
 cc -std=gnu11 -Wall -Wextra -Werror -DNETPLAY_SOCKET_TEST -Isrc/pc \
     tests/netplay_packets.c -lm -o "$build/packets"
 "$build/packets"
+bash tests/run_gameplay_regressions.sh
 exit "$result"

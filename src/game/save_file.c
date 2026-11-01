@@ -1,5 +1,6 @@
 #include <ultra64.h>
 #include <strings.h>
+#include <string.h>
 
 #include "sm64.h"
 #include "game_init.h"
@@ -292,6 +293,48 @@ BAD_RETURN(s32) save_file_copy(s32 srcFileIndex, s32 destFileIndex) {
     save_file_do_save(destFileIndex);
 }
 
+#ifdef __ANDROID__
+/* File D is the ready-to-explore 120-star slot. Update progress additively,
+ * preserve higher coin records, and never modify files A, B or C. */
+static void save_file_prepare_completed_slot(void) {
+    struct SaveFile *save = &gSaveBuffer.files[SAVE_FILE_D][0];
+    struct SaveFile previous = *save;
+    s32 course;
+
+    save->flags |= SAVE_FLAG_FILE_EXISTS
+        | SAVE_FLAG_HAVE_WING_CAP | SAVE_FLAG_HAVE_METAL_CAP | SAVE_FLAG_HAVE_VANISH_CAP
+        | SAVE_FLAG_UNLOCKED_BASEMENT_DOOR | SAVE_FLAG_UNLOCKED_UPSTAIRS_DOOR
+        | SAVE_FLAG_DDD_MOVED_BACK | SAVE_FLAG_MOAT_DRAINED
+        | SAVE_FLAG_UNLOCKED_PSS_DOOR | SAVE_FLAG_UNLOCKED_WF_DOOR
+        | SAVE_FLAG_UNLOCKED_CCM_DOOR | SAVE_FLAG_UNLOCKED_JRB_DOOR
+        | SAVE_FLAG_UNLOCKED_BITDW_DOOR | SAVE_FLAG_UNLOCKED_BITFS_DOOR
+        | SAVE_FLAG_UNLOCKED_50_STAR_DOOR
+        | SAVE_FLAG_COLLECTED_TOAD_STAR_1 | SAVE_FLAG_COLLECTED_TOAD_STAR_2
+        | SAVE_FLAG_COLLECTED_TOAD_STAR_3 | SAVE_FLAG_COLLECTED_MIPS_STAR_1
+        | SAVE_FLAG_COLLECTED_MIPS_STAR_2;
+    save->flags &= ~(SAVE_FLAG_HAVE_KEY_1 | SAVE_FLAG_HAVE_KEY_2
+        | SAVE_FLAG_CAP_ON_GROUND | SAVE_FLAG_CAP_ON_KLEPTO
+        | SAVE_FLAG_CAP_ON_UKIKI | SAVE_FLAG_CAP_ON_MR_BLIZZARD);
+
+    for (course = COURSE_MIN; course <= COURSE_STAGES_MAX; ++course) {
+        save->courseStars[course - 1] |= 0x7F;
+        /* The engine stores each cannon bit in the FOLLOWING course byte. */
+        save->courseStars[course] |= 0x80;
+        if (save->courseCoinScores[course - 1] < 100) save->courseCoinScores[course - 1] = 100;
+    }
+    /* Bonus courses have one star each, except the slide's two.
+     * Together with the five castle stars: 105 + 10 + 5 = 120. */
+    for (course = COURSE_BITDW; course <= COURSE_SA; ++course) {
+        save->courseStars[course - 1] |= course == COURSE_PSS ? 3 : 1;
+    }
+
+    if (memcmp(&previous, save, sizeof(previous)) != 0) {
+        gSaveFileModified = TRUE;
+        save_file_do_save(SAVE_FILE_D); /* normal checksum, backup and EEPROM path */
+    }
+}
+#endif
+
 void save_file_load_all(void) {
     s32 file;
     s32 validSlots;
@@ -335,6 +378,9 @@ void save_file_load_all(void) {
     }
 
     stub_save_file_1();
+#ifdef __ANDROID__
+    save_file_prepare_completed_slot();
+#endif
 }
 
 /**
