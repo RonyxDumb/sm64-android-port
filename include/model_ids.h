@@ -23,9 +23,8 @@
 
 /* Global models that are loaded for every level */
 
-#define MODEL_LUIGI 0x02
 #define MODEL_MARIO                       0x01        // mario_geo
-#define MODEL_LUIGI                       0x02        // unused
+#define MODEL_LUIGI                       0x02        // multiplayer Luigi
 
 /* Various static level geometry, the geo layout differs but terrain object presets treat them the same.*/
 
