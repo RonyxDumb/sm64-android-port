@@ -168,20 +168,21 @@ sm64-android-port
     └── strumenti di build ed estrazione
 ```
 
-## Multiplayer locale Android (prototipo)
+## Multiplayer locale Android (in sviluppo)
 
-Il port include ora un **menu Single Player / Multiplayer** in stile N64,
-con opzioni Host / Join per due telefoni sulla stessa rete Wi-Fi o tramite
-hotspot locale (non servono dati mobili). La discovery utilizza pacchetti
-broadcast UDP sulla porta `45565`, quindi alcuni hotspot possono bloccarla.
+Nel branch `feature/local-multiplayer`, il menu con il logo del debug level select
+permette di scegliere Single Player o Multiplayer, quindi Wi-Fi/hotspot oppure
+**Wi-Fi Direct** fra telefoni vicini senza router o Internet. L'host usa Mario,
+il secondo giocatore Luigi con mesh e texture adattate da `showfloor-nds`.
 
-Il modulo di rete e un avatar remoto sperimentale sono presenti nei sorgenti.
-**Non è ancora un multiplayer cooperativo completo né verificato su due telefoni**:
-mancano sincronizzazione di nemici, stelle, salvataggi, warp e animazioni remote;
-anche Wi-Fi Direct e Nearby Connections non sono ancora implementati.
+Sono implementati avvio confermato da entrambi, replica di posizione e animazioni
+indipendenti, destinazioni warp dell'host e stelle/chiavi raccolte nella sessione.
+I test automatici del trasporto UDP e le compilazioni C/Java non sostituiscono una
+prova su due telefoni. **La cooperativa completa resta da ultimare**: nemici e
+oggetti dinamici simulano ancora localmente, mancano interazioni fra i giocatori
+e vanno verificati tutti i percorsi di cambio area, morte e rientro.
 
-Per l'architettura, le limitazioni e la procedura di prova consulta
-[Multiplayer locale Android](docs/android-local-multiplayer.md).
+Procedura, verifiche e limiti: [Multiplayer locale Android](docs/android-local-multiplayer.md).
 
 ## Android
 
