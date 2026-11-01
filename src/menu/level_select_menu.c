@@ -23,6 +23,36 @@ static u8 sAndroidTransport = 0; /* LAN or Wi-Fi Direct */
 static u8 sAndroidMode = 0;     /* 0 single, 1 multiplayer */
 static u8 sAndroidRole = 0;     /* 0 host, 1 join */
 static u8 sAndroidStickNeutral = 1;
+
+/* print_text uses a 12px advance and a 16px glyph on a 320x240 canvas.
+ * '-' is the HUD star glyph; '<' and '>' are unsupported and render as spaces. */
+static void android_menu_option(s32 y, const char *label, u8 selected) {
+    s32 length = 0;
+    while (label[length]) ++length;
+    print_text_centered(160, y, label);
+    if (selected) {
+        print_text(160 - length * 6 - 24, y, "-");
+        print_text(160 + length * 6 + 8, y, "-");
+    }
+}
+
+static void android_menu_footer(u8 canSelect) {
+    /* Leave the bottom centre clear for the touchscreen START button. */
+    if (canSelect) print_text(36, 8, "A SELECT");
+    print_text(212, 8, "B BACK");
+}
+
+static void android_menu_detail(const char *text) {
+    char line[25];
+    s32 row, i;
+    /* Keep Android error messages inside the central safe area. */
+    for (row = 0; row < 2 && *text; ++row) {
+        for (i = 0; i < 24 && text[i]; ++i) line[i] = text[i];
+        line[i] = 0;
+        text += i;
+        print_text_centered(160, 70 - row * 24, line);
+    }
+}
 #endif
 
 #define PRESS_START_DEMO_TIMER 800
@@ -173,10 +203,10 @@ s32 intro_default(void) {
 
         gDemoCountdown = 0;
         if (sAndroidMenuPage == 1) {
-            print_text_centered(160, 112, "SELECT GAME MODE");
-            print_text_centered(160, 86, sAndroidMode == 0 ? "> SINGLE PLAYER <" : "SINGLE PLAYER");
-            print_text_centered(160, 62, sAndroidMode == 1 ? "> MULTIPLAYER <" : "MULTIPLAYER");
-            print_text_centered(160, 44, "A SELECT  B BACK");
+            print_text_centered(160, 142, "SELECT GAME MODE");
+            android_menu_option(105, "SINGLE PLAYER", sAndroidMode == 0);
+            android_menu_option(70, "MULTIPLAYER", sAndroidMode == 1);
+            android_menu_footer(1);
 
             if ((pressed & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) || axisMove) {
                 sAndroidMode ^= 1;
@@ -197,19 +227,19 @@ s32 intro_default(void) {
                 }
             }
         } else if (sAndroidMenuPage == 4) {
-            print_text_centered(160, 105, "LOCAL CONNECTION");
-            print_text_centered(160, 80, sAndroidTransport == 0 ? "> WIFI OR HOTSPOT <" : "WIFI OR HOTSPOT");
-            print_text_centered(160, 56, sAndroidTransport == 1 ? "> NEARBY WIFI DIRECT <" : "NEARBY WIFI DIRECT");
-            print_text_centered(160, 24, "A SELECT  B BACK");
+            print_text_centered(160, 142, "LOCAL CONNECTION");
+            android_menu_option(105, "WIFI OR HOTSPOT", sAndroidTransport == 0);
+            android_menu_option(70, "NEARBY WIFI DIRECT", sAndroidTransport == 1);
+            android_menu_footer(1);
             if ((pressed & (U_JPAD | D_JPAD)) || axisMove) sAndroidTransport ^= 1;
             if (pressed & B_BUTTON) sAndroidMenuPage = 1;
             else if (pressed & (A_BUTTON | START_BUTTON)) sAndroidMenuPage = 2;
         } else if (sAndroidMenuPage == 2) {
-            print_text_centered(160, 112, "LOCAL MULTIPLAYER");
-            print_text_centered(160, 86, sAndroidRole == 0 ? "> CREATE GAME <" : "CREATE GAME");
-            print_text_centered(160, 62, sAndroidRole == 1 ? "> FIND GAME <" : "FIND GAME");
-            print_text_centered(160, 44, sAndroidTransport ? "NO ROUTER OR INTERNET" : "SAME WIFI OR HOTSPOT");
-            print_text_centered(160, 22, "A SELECT  B BACK");
+            print_text_centered(160, 142, "LOCAL MULTIPLAYER");
+            android_menu_option(105, "CREATE GAME", sAndroidRole == 0);
+            android_menu_option(70, "FIND GAME", sAndroidRole == 1);
+            print_text_centered(160, 36, sAndroidTransport ? "NO ROUTER OR INTERNET" : "SAME WIFI OR HOTSPOT");
+            android_menu_footer(1);
             if ((pressed & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) || axisMove) {
                 sAndroidRole ^= 1;
                 play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
@@ -225,23 +255,23 @@ s32 intro_default(void) {
             }
         } else {
             int status = lan_net_status();
-            print_text_centered(160, 112, sAndroidRole == 0 ? "HOST  MARIO" : "PLAYER TWO  LUIGI");
+            print_text_centered(160, 142, sAndroidRole == 0 ? "HOST  MARIO" : "PLAYER TWO  LUIGI");
             if (status == LAN_NET_PAIRED) {
-                print_text_centered(160, 90, "CONNECTED");
-                print_text_centered(160, 64, "BOTH PRESS START");
+                print_text_centered(160, 105, "CONNECTED");
+                print_text_centered(160, 70, "BOTH PRESS START");
                 if (pressed & (A_BUTTON | START_BUTTON)) lan_net_set_ready();
                 if (lan_net_both_ready()) {
                     sAndroidMenuPage = 1;
                     sp1C = 100;
                 }
             } else if (status == LAN_NET_ERROR) {
-                print_text_centered(160, 90, "NETWORK ERROR");
-                print_text_centered(160, 74, lan_net_detail());
+                print_text_centered(160, 105, "NETWORK ERROR");
+                android_menu_detail(lan_net_detail());
             } else {
-                print_text_centered(160, 90, "SEARCHING");
-                print_text_centered(160, 74, lan_net_detail());
+                print_text_centered(160, 105, "SEARCHING");
+                android_menu_detail(lan_net_detail());
             }
-            print_text_centered(160, 38, "B TO CANCEL");
+            android_menu_footer(status == LAN_NET_PAIRED);
             if (pressed & B_BUTTON) {
                 lan_net_stop();
                 sAndroidMenuPage = 2;

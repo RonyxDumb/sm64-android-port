@@ -105,6 +105,13 @@ const GeoLayout intro_geo_000414[] = {
          GEO_OPEN_NODE(),
             GEO_CAMERA(0, 0, 0, 1200, 0, 0, 0, 0x00000000),
             GEO_OPEN_NODE(),
+#ifdef __ANDROID__
+               /* Reserve the upper 80px for the logo, keeping the menu below. */
+               GEO_TRANSLATE_NODE(0, 0, 190, 0),
+               GEO_OPEN_NODE(),
+                  GEO_SCALE(0, 39322), /* 0.60 */
+                  GEO_OPEN_NODE(),
+#endif
                GEO_TRANSLATE_NODE_WITH_DL(LAYER_OPAQUE, -230, 300, 0, debug_level_select_dl_07000858),
                GEO_TRANSLATE_NODE_WITH_DL(LAYER_OPAQUE, -120, 300, 0, debug_level_select_dl_07001100),
                GEO_TRANSLATE_NODE_WITH_DL(LAYER_OPAQUE,  -20, 300, 0, debug_level_select_dl_07001BA0),
@@ -115,6 +122,10 @@ const GeoLayout intro_geo_000414[] = {
                GEO_TRANSLATE_NODE_WITH_DL(LAYER_OPAQUE,   60, 100, 0, debug_level_select_dl_07005558),
                GEO_TRANSLATE_NODE_WITH_DL(LAYER_OPAQUE,  180, 100, 0, debug_level_select_dl_070059F8),
                GEO_TRANSLATE_NODE_WITH_DL(LAYER_OPAQUE,  300, 100, 0, debug_level_select_dl_070063B0),
+#ifdef __ANDROID__
+                  GEO_CLOSE_NODE(),
+               GEO_CLOSE_NODE(),
+#endif
             GEO_CLOSE_NODE(),
          GEO_CLOSE_NODE(),
       GEO_CLOSE_NODE(),
