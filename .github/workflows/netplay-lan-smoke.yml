@@ -1,9 +1,10 @@
 name: Android LAN transport smoke
 on:
   push:
-    branches: [main]
+    branches: [feature/local-multiplayer]
     paths:
-      - 'src/pc/netplay_lan.*'
+      - 'src/pc/netplay*'
+      - 'tests/*'
       - '.github/workflows/netplay-lan-smoke.yml'
   workflow_dispatch:
 
@@ -20,3 +21,5 @@ jobs:
         run: |
           gcc -std=gnu11 -Wall -Wextra -Werror \
             -Isrc/pc -c src/pc/netplay_lan.c -o /tmp/netplay-stub.o
+      - name: Two-process UDP session and packet rejection tests
+        run: bash tests/run_netplay.sh

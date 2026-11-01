@@ -682,7 +682,7 @@ void game_loop_one_iteration(void) {
         levelCommandAddr = level_script_execute(levelCommandAddr);
 #ifdef __ANDROID__
         if (lan_net_status() == LAN_NET_PAIRED && gMarioObject != NULL && gMarioState != NULL) {
-            struct LanPlayerState local;
+            struct LanPlayerState local = {0};
             local.x = gMarioState->pos[0];
             local.y = gMarioState->pos[1];
             local.z = gMarioState->pos[2];
@@ -690,8 +690,17 @@ void game_loop_one_iteration(void) {
             local.level = (u8)gCurrLevelNum;
             local.area = (u8)gCurrAreaIndex;
             local.action = gMarioState->action;
+            local.act = (u8)gCurrActNum;
+            local.pitch = gMarioObject->header.gfx.angle[0];
+            local.roll = gMarioObject->header.gfx.angle[2];
+            local.anim = gMarioObject->header.gfx.animInfo.animID;
+            local.frame = gMarioObject->header.gfx.animInfo.animFrame;
+            local.anim_y = gMarioObject->header.gfx.animInfo.animYTrans;
+            local.anim_accel = gMarioObject->header.gfx.animInfo.animAccel;
             lan_net_send_player(&local);
         }
+        if (lan_net_status() == LAN_NET_ERROR && gMarioObject != NULL)
+            print_text_centered(160, 20, "CONNECTION LOST");
 #endif
         display_and_vsync();
 

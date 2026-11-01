@@ -8,6 +8,9 @@
 #include "area.h"
 #include "level_update.h"
 #include "save_file.h"
+#ifdef __ANDROID__
+#include "pc/netplay_lan.h"
+#endif
 #include "sound_init.h"
 #include "level_table.h"
 #include "course_table.h"
@@ -360,6 +363,12 @@ void save_file_collect_star_or_key(s16 coinScore, s16 starIndex) {
     s32 courseIndex = gCurrCourseNum - 1;
 
     s32 starFlag = 1 << starIndex;
+#ifdef __ANDROID__
+    if (gCurrLevelNum == LEVEL_BOWSER_1) lan_net_collect(0, 0, 1);
+    else if (gCurrLevelNum == LEVEL_BOWSER_2) lan_net_collect(0, 0, 2);
+    else if (gCurrLevelNum != LEVEL_BOWSER_3 && starIndex >= 0 && starIndex < 7)
+        lan_net_collect(courseIndex + 1, starFlag, 0);
+#endif
     UNUSED s32 flags = save_file_get_flags();
 
     gLastCompletedCourseNum = courseIndex + 1;

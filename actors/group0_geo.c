@@ -16,3 +16,7 @@
 #include "water_splash/geo.inc.c"
 #include "sparkle_animation/geo.inc.c"
 #include "mario/geo.inc.c"
+
+#ifdef __ANDROID__
+#include "player/geo.inc.c"
+#endif

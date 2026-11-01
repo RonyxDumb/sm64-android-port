@@ -41,6 +41,9 @@ const LevelScript level_intro_entry_1[] = {
 };
 
 const LevelScript level_intro_entry_2[] = {
+#ifdef __ANDROID__
+    EXIT_AND_EXECUTE(0x14, _introSegmentRomStart, _introSegmentRomEnd, level_intro_entry_4),
+#else
     INIT_LEVEL(),
     BLACKOUT(/*active*/ TRUE),
     FIXED_LOAD(/*loadAddr*/ _goddardSegmentStart, /*romStart*/ _goddardSegmentRomStart, /*romEnd*/ _goddardSegmentRomEnd),
@@ -63,6 +66,7 @@ const LevelScript level_intro_entry_2[] = {
     JUMP_IF(/*op*/ OP_EQ, /*arg*/ 100, script_intro_L1),
     JUMP_IF(/*op*/ OP_EQ, /*arg*/ 101, script_intro_L2),
     JUMP(script_intro_L4),
+#endif
 };
 
 const LevelScript level_intro_entry_3[] = {
@@ -106,9 +110,14 @@ const LevelScript level_intro_entry_4[] = {
     SET_MENU_MUSIC(/*seq*/ 0x0002),
     TRANSITION(/*transType*/ WARP_TRANSITION_FADE_FROM_COLOR, /*time*/ 16, /*color*/ 0xFF, 0xFF, 0xFF),
     SLEEP(/*frames*/ 16),
+#ifdef __ANDROID__
+    CALL_LOOP(1, lvl_intro_update),
+    JUMP(script_intro_L1),
+#else
     CALL_LOOP(/*arg*/ 3, /*func*/ lvl_intro_update),
     JUMP_IF(/*op*/ OP_EQ, /*arg*/ -1, script_intro_L5),
     JUMP(script_intro_L3),
+#endif
 };
 
 // These should be static, but C doesn't allow non-sized forward declarations of static arrays

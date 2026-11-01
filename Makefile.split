@@ -63,7 +63,7 @@ MOLE_DIRS        := monty_mole_hole monty_mole smoke ukiki fwoosh
 LAKITU_DIRS      := lakitu_cameraman toad mips boo_castle
 PEACH_DIRS       := bird peach yoshi
 BOWSER_DIRS      := bowser_flame impact_ring yellow_sphere bowser bomb impact_smoke
-MARIO_DIRS       := mario bubble walk_smoke burn_smoke stomp_smoke water_wave sparkle water_splash white_particle_small sparkle_animation
+MARIO_DIRS       := mario player bubble walk_smoke burn_smoke stomp_smoke water_wave sparkle water_splash white_particle_small sparkle_animation
 
 # Actor Files
 AMP_CHUCKYA_FILES            := $(foreach dir,$(addprefix $(ACTOR_DIR)/,$(AMP_DIRS)),$(patsubst %.png,%.inc.c,$(wildcard $(dir)/*.png)))
@@ -88,7 +88,7 @@ SKEETER_FISH_FILES           := $(foreach dir,$(addprefix $(ACTOR_DIR)/,$(SKEETE
 SPINDRIFT_PENGUIN_FILES      := $(foreach dir,$(addprefix $(ACTOR_DIR)/,$(SPINDRIFT_DIRS)),$(patsubst %.png,%.inc.c,$(wildcard $(dir)/*.png)))
 
 # Actor dependencies
-$(BUILD_DIR)/actors/group0.o: $(addprefix $(BUILD_DIR)/,$(MARIO_WATER_FILES)) $(foreach dir,$(addprefix $(ACTOR_DIR)/,$(MARIO_DIRS)),$(wildcard $(dir)/*.c))
+$(BUILD_DIR)/actors/group0.o: $(wildcard actors/player/luigi/*.sou) $(addprefix $(BUILD_DIR)/,$(MARIO_WATER_FILES)) $(foreach dir,$(addprefix $(ACTOR_DIR)/,$(MARIO_DIRS)),$(wildcard $(dir)/*.c))
 $(BUILD_DIR)/actors/group1.o: $(addprefix $(BUILD_DIR)/,$(HOOT_THWOMP_FILES)) $(foreach dir,$(addprefix $(ACTOR_DIR)/,$(HOOT_DIRS)),$(wildcard $(dir)/*.c))
 $(BUILD_DIR)/actors/group2.o: $(addprefix $(BUILD_DIR)/,$(BULLY_BLARGG_FILES)) $(foreach dir,$(addprefix $(ACTOR_DIR)/,$(BULLY_DIRS)),$(wildcard $(dir)/*.c))
 $(BUILD_DIR)/actors/group3.o: $(addprefix $(BUILD_DIR)/,$(BOBOMBS_BUBBLE_FILES)) $(foreach dir,$(addprefix $(ACTOR_DIR)/,$(KING_BOBOMB_DIRS)),$(wildcard $(dir)/*.c))

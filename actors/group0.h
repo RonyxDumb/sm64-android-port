@@ -342,4 +342,9 @@ extern const Gfx white_particle_small_dl_end[];
 extern const Gfx white_particle_small_dl[];
 extern const Gfx white_particle_small_unused_dl[];
 
+
+#ifdef __ANDROID__
+extern const GeoLayout luigi_geo[];
+#endif
+
 #endif
