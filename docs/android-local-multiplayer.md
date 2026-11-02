@@ -27,7 +27,7 @@ Installare la stessa **nuova APK con protocollo v3** su due telefoni; le APK v2 
 
 1. Multiplayer → scegliere su entrambi `Wi-Fi / Hotspot` oppure `Wi-Fi Direct · Nelle vicinanze`.
 2. Su A scegliere «Crea partita», su B «Cerca partita».
-3. Per LAN: stessa rete o hotspot locale (dati mobili non necessari). Per Direct: Wi-Fi acceso, autorizzazione richiesta dall'app e, con il target SDK legacy corrente, localizzazione di sistema attiva. Su B confermare il telefono trovato, su A accettare l'associazione Android se richiesta.
+3. Per LAN: stessa rete o hotspot locale (dati mobili non necessari). Per Direct: Wi-Fi acceso e autorizzazione concessa all'avvio. L'app Android ha target SDK 33: su Android 13+ chiede dispositivi Wi-Fi nelle vicinanze (`neverForLocation`) e notifiche; su Android 6–12 chiede localizzazione approssimativa/precisa insieme e richiede la localizzazione di sistema attiva. Le notifiche sono facoltative e non bloccano il multiplayer. I pulsanti della lobby controllano il permesso già concesso; un rifiuto o una revoca mostra un errore senza chiudere il gioco. Su B confermare il telefono trovato, su A accettare l'associazione Android se richiesta.
 4. Quando connessi, premere START su entrambi, poi scegliere un file su ciascun telefono.
 5. Provare lo stesso livello e area con missioni differenti: Mario e Luigi devono essere visibili. Provare poi un cambio area e il ricongiungimento. Ogni giocatore sceglie liberamente livelli e missioni: non serve aspettare l'altro. Stelle e chiavi raccolte nella sessione vengono aggiunte ai file scelti. Il file **D** è predisposto a **120 stelle**, con cappelli, porte e cannoni sbloccati; A/B/C non vengono modificati dalla creazione del preset. I record monete di D superiori a 100 vengono conservati. Il preset viene ripristinato al caricamento dei salvataggi, anche dopo aver cancellato D.
 6. Provare ON/OFF dal menu e dalla pausa: OFF deve arrestare subito il feedback e restare salvato al riavvio.
@@ -55,9 +55,10 @@ Eseguito nell'ambiente di sviluppo:
 - Avatar: stesso livello/area con missioni diverse, nessuna ricreazione per il solo cambio missione, rimozione al cambio area, ricongiungimento e disconnessione.
 - Contatti: spinte nei due versi, missioni diverse, arrivo contro un giocatore bloccato, scatti, altezza e stato non tangibile; simulazione di dati ritardati; integrazione con un mondo controllato per muri, assenza di pavimento, soffitto basso, dati vecchi, pausa e cutscene.
 - Regressione selettore: il guest conferma con A/START una missione propria mentre l’host è al castello.
+- Regressione renderer menu: esegue il vero menu e `print_generic_string` con i buchi della vera tabella font USA, senza pixel della ROM. Tutte le pagine, le animazioni di entrata, ON/OFF, ricerca, attesa, pronto, errori e riconnessione devono generare texture non nulle. Il vecchio uso di `DIALOG_CHAR_PERIOD` riproduce una texture nulla entrando nella lobby; il punto corretto della tabella USA è `0x3F`.
 - Salvataggi: caricamento/scrittura EEPROM simulata, conteggio esatto di 120 stelle in D, cappelli e cannoni, conservazione di A/B/C e dei record migliori, backup/checksum e ricaricamento senza scritture ripetute.
 - Compilazione del trasporto Android/non Android con `-Wall -Wextra -Werror`.
 - Controllo sintattico C dei file modificati, del layout e della mesh Luigi con texture convertite.
-- Compilazione Java 8 di tutte le classi contro Android API 28 e controllo C del bridge JNI contro gli header SDL.
+- Compilazione Java 8 di tutte le classi contro Android API 33 e controllo C del bridge JNI contro gli header SDL. Nel contenitore Android, `tests/run_permissions.sh` verifica la selezione dei permessi per le API 21–37; solo il callback dei permessi SDL viene inoltrato al codice nativo SDL.
 
 **Non eseguito localmente**: build APK completa con ROM/NDK, rendering del gioco, sensazione del motore e partita su due Android reali. I test di trasporto non dimostrano la correttezza dell'intero gameplay o della discovery radio. La workflow APK del contenitore Gradle resta il controllo della build completa.

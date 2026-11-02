@@ -22,10 +22,18 @@ void lan_menu_set_state(int page, int selected, int status, int ready, const cha
 }
 static void encode(const char *ascii, u8 *text, int max) {
     int n;
+#if defined(VERSION_JP) || defined(VERSION_SH)
+    const u8 period = DIALOG_CHAR_PERIOD;
+#else
+    const u8 period = 0x3F;
+#endif
     for (n = 0; n < max - 1 && ascii[n]; ++n) {
         char c = ascii[n];
-        text[n] = (c == ' ' || c == '-' || c == '_') ? DIALOG_CHAR_SPACE : c == '.' ? DIALOG_CHAR_PERIOD
-                : c == '/' ? DIALOG_CHAR_SLASH : ASCII_TO_DIALOG(c);
+        /* DIALOG_CHAR_PERIOD (0x6E) is a Japanese control code: the generic
+         * renderer resolves it to the handakuten glyph at 0xF1, which is NULL
+         * in the US/EU font. Use the same period as charmap.txt instead. */
+        text[n] = (c == ' ' || c == '-' || c == '_') ? DIALOG_CHAR_SPACE
+                : c == '.' ? period : c == '/' ? DIALOG_CHAR_SLASH : ASCII_TO_DIALOG(c);
     }
     text[n] = DIALOG_CHAR_TERMINATOR;
 }
