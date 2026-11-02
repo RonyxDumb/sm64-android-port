@@ -13,6 +13,7 @@
 #include "game/object_helpers.h"
 #include "game/object_list_processor.h"
 #include "netplay_lan.h"
+#include "netplay_contact.h"
 #include "game/game_init.h"
 #include "game/memory.h"
 #include "game/mario.h"
@@ -126,6 +127,21 @@ void bhv_lan_remote_mario_loop(void) {
         o->oPosX += dx * 0.34f;
         o->oPosY += dy * 0.34f;
         o->oPosZ += dz * 0.34f;
+    }
+    /* Keep the interpolated mesh outside the local contact cylinder. Network
+     * latency must not make a correctly resolved contact look like clipping. */
+    unsigned char own_contact = lan_netplay_contact_flags(gMarioState);
+    float own_height = own_contact & LAN_PLAYER_SHORT ? 100 : 160;
+    float peer_height = peer.contact & LAN_PLAYER_SHORT ? 100 : 160;
+    if ((peer.contact & own_contact & LAN_PLAYER_SOLID) && lan_net_peer_age_ms() <= 300
+        && gMarioState->pos[1] + own_height > peer.y + 4 && peer.y + peer_height > gMarioState->pos[1] + 4) {
+        float mx = o->oPosX - gMarioState->pos[0], mz = o->oPosZ - gMarioState->pos[2];
+        float tx = peer.x - gMarioState->pos[0], tz = peer.z - gMarioState->pos[2];
+        float distance = sqrtf(tx * tx + tz * tz);
+        if (mx * mx + mz * mz < 78 * 78 || mx * tx + mz * tz < 0) {
+            o->oPosX = gMarioState->pos[0] + (distance > .01f ? tx / distance : lan_net_is_host() ? 1 : -1) * 78;
+            o->oPosZ = gMarioState->pos[2] + (distance > .01f ? tz / distance : 0) * 78;
+        }
     }
     o->oFaceAngleYaw = peer.yaw;
     o->oMoveAngleYaw = peer.yaw;

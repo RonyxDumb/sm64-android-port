@@ -5,6 +5,8 @@ enum LanNetStatus { LAN_NET_OFF, LAN_NET_SEARCHING, LAN_NET_PAIRED, LAN_NET_ERRO
 enum LanTransport { LAN_TRANSPORT_WIFI, LAN_TRANSPORT_DIRECT };
 struct LanPlayerState {
     float x, y, z;
+    float vx, vz;
+    uint8_t contact;
     int16_t yaw, pitch, roll;
     uint8_t level, area, act;
     uint32_t action;
@@ -29,5 +31,6 @@ int lan_net_ready_mask(void);
 int lan_net_both_ready(void);
 const char *lan_net_detail(void);
 void lan_net_send_player(const struct LanPlayerState *state);
+uint32_t lan_net_peer_age_ms(void);
 int lan_net_read_peer(struct LanPlayerState *out);
 #endif

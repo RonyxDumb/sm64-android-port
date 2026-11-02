@@ -17,10 +17,12 @@
 #ifdef __ANDROID__
 #include "pc/netplay_lan.h"
 #include "pc/android_feedback.h"
+#include "pc/netplay_direct.h"
 
 static u8 sAndroidMenuPage = 1; /* mode, role, lobby, transport */
 static u8 sAndroidTransport, sAndroidMode, sAndroidRole;
 static u8 sAndroidStickNeutral = 1;
+static u8 sAndroidFocus;
 #endif
 
 #define PRESS_START_DEMO_TIMER 800
@@ -161,47 +163,74 @@ s32 intro_default(void) {
     {
         u16 pressed = gPlayer1Controller->buttonPressed;
         s16 stickY = gPlayer1Controller->stickY;
-        u8 axisMove = 0;
-        u8 *selection = sAndroidMenuPage == 1 ? &sAndroidMode
-                      : sAndroidMenuPage == 4 ? &sAndroidTransport : &sAndroidRole;
-        int command = android_menu_poll(sAndroidMenuPage, sAndroidMenuPage == 3 ? 0 : *selection,
-                lan_net_status(), lan_net_ready_mask(), lan_net_detail());
+        int count = 3;
+        const char *detail = lan_net_detail();
+        if (sAndroidTransport == LAN_TRANSPORT_DIRECT && sAndroidRole == 1
+            && (sAndroidMenuPage == 3 || sAndroidMenuPage == 6)
+            && lan_net_status() == LAN_NET_SEARCHING) {
+            const char *names = net_direct_games();
+            if (*names) {
+                if (sAndroidMenuPage != 6) sAndroidFocus = 0;
+                sAndroidMenuPage = 6; detail = names;
+                count = 1;
+                while (*names) if (*names++ == '\n') ++count;
+            } else if (sAndroidMenuPage == 6) { sAndroidMenuPage = 3; sAndroidFocus = 0; }
+        } else if (sAndroidMenuPage == 6) { sAndroidMenuPage = 3; sAndroidFocus = 0; }
+        if (sAndroidFocus >= count) sAndroidFocus = count - 1;
+        int command = android_menu_poll(sAndroidMenuPage, sAndroidFocus, lan_net_status(), lan_net_ready_mask(), detail);
         if ((command >> 8) == sAndroidMenuPage) {
             command &= 255;
-            if (command == 3 || (sAndroidMenuPage == 3 && command == 17)) pressed |= B_BUTTON;
-            else if (command == 16 || command == 17) {
-                if (sAndroidMenuPage != 3) *selection = command - 16;
-                pressed |= A_BUTTON;
+            if (command == 3) pressed |= B_BUTTON;
+            else if (command == 20 || command == 21) {
+                android_rumble_set_enabled(command == 20);
+                sAndroidFocus = 2;
+                play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+            } else if (command >= 16 && command <= 18) {
+                sAndroidFocus = sAndroidMenuPage == 6 ? sAndroidFocus / 3 * 3 + command - 16 : command - 16;
+                if (sAndroidFocus < count) pressed |= A_BUTTON;
             }
         }
+        int move = pressed & U_JPAD ? -1 : pressed & D_JPAD ? 1 : 0;
         if (stickY > 35 || stickY < -35) {
-            axisMove = sAndroidStickNeutral;
+            if (sAndroidStickNeutral) move = stickY > 0 ? -1 : 1;
             sAndroidStickNeutral = 0;
         } else sAndroidStickNeutral = 1;
-        gDemoCountdown = 0;
-        if (sAndroidMenuPage != 3 && ((pressed & (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) || axisMove)) {
-            *selection ^= 1;
+        if (move) {
+            sAndroidFocus = (sAndroidFocus + count + move) % count;
             play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
         }
+        if (sAndroidMenuPage != 6 && sAndroidFocus == 2 && (pressed & (L_JPAD | R_JPAD)))
+            android_rumble_set_enabled(!android_rumble_enabled());
+        gDemoCountdown = 0;
         if (pressed & B_BUTTON) {
-            if (sAndroidMenuPage == 3) { lan_net_stop(); sAndroidMenuPage = 2; }
+            if (sAndroidMenuPage == 3 || sAndroidMenuPage == 6) { lan_net_stop(); sAndroidMenuPage = 2; }
             else if (sAndroidMenuPage == 2) sAndroidMenuPage = 4;
             else sAndroidMenuPage = 1;
+            sAndroidFocus = 0;
         } else if (pressed & (A_BUTTON | START_BUTTON)) {
             play_sound(SOUND_MENU_STAR_SOUND, gDefaultSoundArgs);
-            if (sAndroidMenuPage == 1) {
+            if (sAndroidMenuPage == 6) {
+                android_direct_choose(sAndroidFocus);
+                sAndroidMenuPage = 3; sAndroidFocus = 0;
+            } else if (sAndroidFocus == 2) android_rumble_set_enabled(!android_rumble_enabled());
+            else if (sAndroidMenuPage == 1) {
+                sAndroidMode = sAndroidFocus;
                 if (sAndroidMode == 0) { lan_net_stop(); sp1C = 100; }
-                else sAndroidMenuPage = 4;
-            } else if (sAndroidMenuPage == 4) sAndroidMenuPage = 2;
-            else if (sAndroidMenuPage == 2 || lan_net_status() == LAN_NET_ERROR) {
+                else { sAndroidMenuPage = 4; sAndroidFocus = sAndroidTransport; }
+            } else if (sAndroidMenuPage == 4) {
+                sAndroidTransport = sAndroidFocus; sAndroidMenuPage = 2; sAndroidFocus = sAndroidRole;
+            } else if (sAndroidMenuPage == 2) {
+                sAndroidRole = sAndroidFocus;
                 lan_net_start(sAndroidRole == 0, sAndroidTransport);
-                sAndroidMenuPage = 3;
-            } else if (lan_net_status() == LAN_NET_PAIRED) lan_net_set_ready();
+                sAndroidMenuPage = 3; sAndroidFocus = 0;
+            } else if (sAndroidFocus == 1) { lan_net_stop(); sAndroidMenuPage = 2; sAndroidFocus = 0; }
+            else if (lan_net_status() == LAN_NET_ERROR) lan_net_start(sAndroidRole == 0, sAndroidTransport);
+            else if (lan_net_status() == LAN_NET_PAIRED) lan_net_set_ready();
         }
         if (sAndroidMenuPage == 3 && lan_net_both_ready()) sp1C = 100;
         if (sp1C) {
             android_menu_poll(0, 0, 0, 0, "");
-            sAndroidMenuPage = 1;
+            sAndroidMenuPage = 1; sAndroidFocus = 0;
 #ifndef VERSION_JP
             D_U_801A7C34 = 1;
 #endif

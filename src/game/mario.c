@@ -1,3 +1,6 @@
+#ifdef __ANDROID__
+#include "pc/netplay_contact.h"
+#endif
 #include <PR/ultratypes.h>
 
 #include "sm64.h"
@@ -1699,6 +1702,10 @@ s32 execute_mario_action(UNUSED struct Object *o) {
     s32 inLoop = TRUE;
 
     if (gMarioState->action) {
+#ifdef __ANDROID__
+        Vec3f contactStart;
+        vec3f_copy(contactStart, gMarioState->pos);
+#endif
         gMarioState->marioObj->header.gfx.node.flags &= ~GRAPH_RENDER_INVISIBLE;
         mario_reset_bodystate(gMarioState);
         update_mario_inputs(gMarioState);
@@ -1745,6 +1752,9 @@ s32 execute_mario_action(UNUSED struct Object *o) {
             }
         }
 
+#ifdef __ANDROID__
+        lan_netplay_apply_contact(gMarioState, contactStart);
+#endif
         sink_mario_in_quicksand(gMarioState);
         squish_mario_model(gMarioState);
         set_submerged_cam_preset_and_spawn_bubbles(gMarioState);

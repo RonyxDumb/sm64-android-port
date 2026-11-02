@@ -49,6 +49,9 @@ int net_direct_status(void) { return call_int("localDirectStatus", "()I", 0); }
 const char *net_direct_host_address(void) {
     static char ip[64]; return call_string("localDirectAddress", ip, sizeof(ip));
 }
+const char *net_direct_games(void) {
+    static char games[256]; return call_string("localDirectGames", games, sizeof(games));
+}
 const char *net_direct_detail(void) {
     static char detail[64]; return call_string("localDirectDetail", detail, sizeof(detail));
 }
@@ -57,5 +60,6 @@ int net_direct_start(int host) { (void)host; return -1; }
 void net_direct_stop(void) {}
 int net_direct_status(void) { return -1; }
 const char *net_direct_host_address(void) { return ""; }
+const char *net_direct_games(void) { return ""; }
 const char *net_direct_detail(void) { return "WIFI DIRECT UNAVAILABLE"; }
 #endif

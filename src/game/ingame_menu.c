@@ -1,3 +1,6 @@
+#ifdef __ANDROID__
+#include "pc/netplay_menu.h"
+#endif
 #include <ultra64.h>
 
 #include "actors/common1.h"
@@ -3070,5 +3073,8 @@ s16 render_menus_and_dialogs() {
         render_dialog_entries();
         gDialogColorFadeTimer = (s16) gDialogColorFadeTimer + 0x1000;
     }
+    #ifdef __ANDROID__
+    lan_menu_render();
+    #endif
     return mode;
 }

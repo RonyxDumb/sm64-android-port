@@ -54,6 +54,12 @@ int main(void) {
     write32(packet + 12, 1); write_float(packet + 20, 100);
     inject(peer, packet, LAN_PACKET_SIZE);
     assert(lan_net_read_peer(&state) && state.x == 6.5f); // stale packet
+    write32(packet + 12, 3); write_float(packet + 100, NAN);
+    inject(peer, packet, LAN_PACKET_SIZE);
+    assert(sLastStateSeq == 2 && sPeerState.vx == 0);
+    write_float(packet + 100, 25); write_float(packet + 104, -5); packet[108] = 7;
+    inject(peer, packet, LAN_PACKET_SIZE);
+    assert(lan_net_read_peer(&state) && state.vx == 25 && state.vz == -5 && state.contact == 7);
     lan_net_set_ready();
     lan_net_collect(1, 4, 1);
     sLastPeerTick = now_ms() - LAN_RECONNECT_AFTER_MS - 1;

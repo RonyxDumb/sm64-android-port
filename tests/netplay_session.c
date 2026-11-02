@@ -20,7 +20,8 @@ int main(int argc, char **argv) {
     setenv("NETPLAY_TEST_BIND_IP", host ? "127.0.0.1" : "127.0.0.2", 1);
     assert(lan_net_start(host, LAN_TRANSPORT_DIRECT) == 0);
     local.x = host ? 123.5f : -42.25f;
-    local.y = 200; local.z = -300; local.level = 9; local.area = 1; local.act = 2;
+    local.y = 200; local.z = -300; local.level = 9; local.area = 1; local.act = host ? 1 : 6;
+    local.vx = host ? 12 : -8; local.vz = 4; local.contact = 1;
     local.anim = host ? 72 : 15; local.frame = 17; local.anim_y = 189; local.anim_accel = 65536;
     for (ticks = 0; ticks < 240; ++ticks) {
         lan_net_tick();
@@ -35,7 +36,8 @@ int main(int argc, char **argv) {
             assert(peer.x == (host ? -42.25f : 123.5f));
             assert(peer.anim == (host ? 15 : 72));
             assert(peer.frame == 17 && peer.anim_y == 189 && peer.anim_accel == 65536);
-            assert(peer.act == 2);
+            assert(peer.act == (host ? 6 : 1));
+            assert(peer.vx == (host ? -8 : 12) && peer.vz == 4 && peer.contact == 1);
             got_state = 1;
         }
         lan_net_progress(stars, &keys);

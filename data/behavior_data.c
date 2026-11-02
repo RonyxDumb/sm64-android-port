@@ -6109,7 +6109,7 @@ const BehaviorScript bhvIntroScene[] = {
 
 
 #ifdef __ANDROID__
-/* The networked visual avatar has no physics or collision side effects. */
+/* The remote mesh follows packets; contacts affect only the locally owned Mario. */
 extern void bhv_lan_remote_mario_loop(void);
 const BehaviorScript bhvLanRemoteMario[] = {
     BEGIN(OBJ_LIST_GENACTOR),

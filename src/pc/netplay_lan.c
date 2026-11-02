@@ -5,7 +5,7 @@
  * Discovery: guest broadcasts HELLO on UDP/45565; host returns WELCOME.
  * Transport: versioned, fixed-size network-order packets, nonblocking I/O.
  * Wi-Fi Direct pairing is confirmed by Android; LAN accepts the first peer.
- * Version 2 includes recipient nonce, readiness and independent animation.
+ * Version 3 adds motion and contact state for owner-applied player pushing.
  */
 #include "netplay_lan.h"
 #include <string.h>
@@ -28,7 +28,7 @@
 
 #define LAN_PORT 45565
 #define LAN_PACKET_SIZE 112
-#define LAN_PROTOCOL_VERSION 2
+#define LAN_PROTOCOL_VERSION 3
 #define LAN_DISCOVER_INTERVAL 1000
 #define LAN_KEEPALIVE_INTERVAL 500
 #define LAN_RECONNECT_AFTER_MS 5000
@@ -153,6 +153,9 @@ static void send_packet(const struct sockaddr_in *addr, uint8_t type,
         write16(buf + 46, (uint16_t)state->pitch);
         write16(buf + 48, (uint16_t)state->roll);
         buf[50] = state->act;
+        write_float(buf + 100, state->vx);
+        write_float(buf + 104, state->vz);
+        buf[108] = state->contact & 7;
         write32(buf + 52, (uint32_t)state->anim_accel);
     }
     if (type == LAN_KEEPALIVE || type == LAN_PLAYER_STATE) {
@@ -352,12 +355,17 @@ void lan_net_tick(void) {
                 sPeerState.pitch = (int16_t)read16(buf + 46);
                 sPeerState.roll = (int16_t)read16(buf + 48);
                 sPeerState.act = buf[50];
+                sPeerState.vx = read_float(buf + 100);
+                sPeerState.vz = read_float(buf + 104);
+                sPeerState.contact = buf[108] & 7;
                 sPeerState.anim_accel = (int32_t)read32(buf + 52);
                 if (!isfinite(sPeerState.x) || !isfinite(sPeerState.y) || !isfinite(sPeerState.z)
                     || fabsf(sPeerState.x) > 32768 || fabsf(sPeerState.y) > 32768
                     || fabsf(sPeerState.z) > 32768 || sPeerState.area > 8
                     || sPeerState.anim < 0 || sPeerState.anim > 255
-                    || sPeerState.frame < 0 || sPeerState.frame > 10000) {
+                    || sPeerState.frame < 0 || sPeerState.frame > 10000
+                    || !isfinite(sPeerState.vx) || !isfinite(sPeerState.vz)
+                    || fabsf(sPeerState.vx) > 200 || fabsf(sPeerState.vz) > 200) {
                     sPeerState = previous;
                     continue;
                 }
@@ -406,6 +414,7 @@ void lan_net_send_player(const struct LanPlayerState *state) {
     }
 }
 
+uint32_t lan_net_peer_age_ms(void) { return sHavePeerState ? sTick - sLastStateTick : UINT32_MAX; }
 int lan_net_read_peer(struct LanPlayerState *out) {
     if (out == NULL || sStatus != LAN_NET_PAIRED || !sHavePeerState
         || sTick - sLastStateTick > LAN_PEER_STATE_MAX_AGE) return 0;
@@ -433,5 +442,6 @@ void lan_net_tick(void) {}
 int lan_net_status(void) { return LAN_NET_OFF; }
 int lan_net_is_host(void) { return 0; }
 void lan_net_send_player(const struct LanPlayerState *state) { (void)state; }
+uint32_t lan_net_peer_age_ms(void) { return UINT32_MAX; }
 int lan_net_read_peer(struct LanPlayerState *out) { (void)out; return 0; }
 #endif

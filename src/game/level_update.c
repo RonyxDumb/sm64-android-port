@@ -1008,7 +1008,11 @@ s32 play_mode_normal(void) {
 
 s32 play_mode_paused(void) {
 #ifdef __ANDROID__
-    android_menu_poll(gPauseScreenMode == 0 ? 5 : 0, 0, 0, 0, "");
+    int menuCommand = android_menu_poll(gPauseScreenMode == 0 ? 5 : 0, 0, 0, 0, "");
+    if ((menuCommand >> 8) == 5 && ((menuCommand & 255) == 20 || (menuCommand & 255) == 21))
+        android_rumble_set_enabled((menuCommand & 255) == 20);
+    if (gPlayer1Controller->buttonPressed & L_TRIG)
+        android_rumble_set_enabled(!android_rumble_enabled());
 #endif
     if (gPauseScreenMode == 0) {
         set_menu_mode(RENDER_PAUSE_SCREEN);

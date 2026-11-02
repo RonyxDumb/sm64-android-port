@@ -1,3 +1,6 @@
+#ifdef __ANDROID__
+#include "pc/netplay_contact.h"
+#endif
 #include <ultra64.h>
 
 #include "sm64.h"
@@ -693,6 +696,9 @@ void game_loop_one_iteration(void) {
                 local.level = (u8)gCurrLevelNum;
                 local.area = (u8)gCurrAreaIndex;
                 local.action = gMarioState->action;
+                local.vx = fmaxf(-200, fminf(200, gMarioState->vel[0]));
+                local.vz = fmaxf(-200, fminf(200, gMarioState->vel[2]));
+                local.contact = lan_netplay_contact_flags(gMarioState);
                 local.act = (u8)gCurrActNum;
                 local.pitch = gMarioObject->header.gfx.angle[0];
                 local.roll = gMarioObject->header.gfx.angle[2];
