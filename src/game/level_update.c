@@ -28,6 +28,9 @@
 #include "level_table.h"
 #include "course_table.h"
 #include "thread6.h"
+#ifdef __ANDROID__
+#include "pc/android_feedback.h"
+#endif
 
 #define PLAY_MODE_NORMAL 0
 #define PLAY_MODE_PAUSED 2
@@ -678,7 +681,7 @@ void initiate_painting_warp(void) {
 
                 play_sound(SOUND_MENU_STAR_SOUND, gDefaultSoundArgs);
                 fadeout_music(398);
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(__ANDROID__)
                 queue_rumble_data(80, 70);
                 func_sh_8024C89C(1);
 #endif
@@ -992,7 +995,7 @@ s32 play_mode_normal(void) {
             set_play_mode(PLAY_MODE_CHANGE_AREA);
         } else if (pressed_pause()) {
             lower_background_noise(1);
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(__ANDROID__)
             cancel_rumble();
 #endif
             gCameraMovementFlags |= CAM_MOVE_PAUSE_SCREEN;
@@ -1004,6 +1007,9 @@ s32 play_mode_normal(void) {
 }
 
 s32 play_mode_paused(void) {
+#ifdef __ANDROID__
+    android_menu_poll(gPauseScreenMode == 0 ? 5 : 0, 0, 0, 0, "");
+#endif
     if (gPauseScreenMode == 0) {
         set_menu_mode(RENDER_PAUSE_SCREEN);
     } else if (gPauseScreenMode == 1) {
@@ -1205,7 +1211,7 @@ s32 init_level(void) {
             set_background_music(gCurrentArea->musicParam, gCurrentArea->musicParam2, 0);
         }
     }
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(__ANDROID__)
     if (gCurrDemoInput == NULL) {
         cancel_rumble();
     }

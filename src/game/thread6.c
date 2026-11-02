@@ -5,7 +5,7 @@
 #include "main.h"
 #include "thread6.h"
 
-#ifdef VERSION_SH
+#if defined(VERSION_SH) && !defined(__ANDROID__)
 
 static s8 D_SH_8030CCB4;
 static s32 sUnusedDisableRumble;
@@ -286,4 +286,33 @@ void rumble_thread_update_vi(void) {
     osSendMesg(&gRumbleThreadVIMesgQueue, (OSMesg) 0x56525443, OS_MESG_NOBLOCK);
 }
 
+#elif defined(__ANDROID__)
+/* Reuse Shindou gameplay triggers without emulating an N64 motor or SI thread.
+ * Android applies a bounded envelope, amplitude scaling and a rate limit. */
+#include "pc/android_feedback.h"
+
+s32 gRumblePakTimer;
+static s16 sRumbleBusyFrames;
+void init_rumble_pak_scheduler_queue(void) {}
+void block_until_rumble_pak_free(void) {}
+void release_rumble_pak_control(void) {}
+void create_thread_6(void) {}
+void queue_rumble_data(s16 frames, s16 strength) {
+    if (frames <= 0 || strength <= 0) return;
+    android_rumble_event(frames, strength, 0);
+    sRumbleBusyFrames = 3;
+}
+void func_sh_8024C89C(s16 decay) { (void)decay; } // envelope already fades
+u8 is_rumble_finished_and_queue_empty(void) { return sRumbleBusyFrames == 0; }
+void reset_rumble_timers(void) { android_rumble_event(1, 30, 1); }
+void reset_rumble_timers_2(s32 strength) { (void)strength; reset_rumble_timers(); }
+void func_sh_8024CA04(void) { reset_rumble_timers(); }
+void cancel_rumble(void) {
+    gRumblePakTimer = sRumbleBusyFrames = 0;
+    android_rumble_event(0, 0, 0);
+}
+void rumble_thread_update_vi(void) {
+    if (gRumblePakTimer > 0) --gRumblePakTimer;
+    if (sRumbleBusyFrames > 0) --sRumbleBusyFrames;
+}
 #endif

@@ -678,27 +678,35 @@ void game_loop_one_iteration(void) {
 #ifdef __ANDROID__
         /* Main-thread network polling: no blocking sockets in the game loop. */
         lan_net_tick();
+        rumble_thread_update_vi();
 #endif
         levelCommandAddr = level_script_execute(levelCommandAddr);
 #ifdef __ANDROID__
-        if (lan_net_status() == LAN_NET_PAIRED && gMarioObject != NULL && gMarioState != NULL) {
+        if (lan_net_status() == LAN_NET_PAIRED) {
             struct LanPlayerState local = {0};
-            local.x = gMarioState->pos[0];
-            local.y = gMarioState->pos[1];
-            local.z = gMarioState->pos[2];
-            local.yaw = gMarioState->faceAngle[1];
-            local.level = (u8)gCurrLevelNum;
-            local.area = (u8)gCurrAreaIndex;
-            local.action = gMarioState->action;
-            local.act = (u8)gCurrActNum;
-            local.pitch = gMarioObject->header.gfx.angle[0];
-            local.roll = gMarioObject->header.gfx.angle[2];
-            local.anim = gMarioObject->header.gfx.animInfo.animID;
-            local.frame = gMarioObject->header.gfx.animInfo.animFrame;
-            local.anim_y = gMarioObject->header.gfx.animInfo.animYTrans;
-            local.anim_accel = gMarioObject->header.gfx.animInfo.animAccel;
+            if (gMarioObject != NULL && gMarioState != NULL && gCurrentArea != NULL
+                && (gMarioObject->activeFlags & ACTIVE_FLAG_ACTIVE)) {
+                local.x = gMarioState->pos[0];
+                local.y = gMarioState->pos[1];
+                local.z = gMarioState->pos[2];
+                local.yaw = gMarioState->faceAngle[1];
+                local.level = (u8)gCurrLevelNum;
+                local.area = (u8)gCurrAreaIndex;
+                local.action = gMarioState->action;
+                local.act = (u8)gCurrActNum;
+                local.pitch = gMarioObject->header.gfx.angle[0];
+                local.roll = gMarioObject->header.gfx.angle[2];
+                local.anim = gMarioObject->header.gfx.animInfo.animID;
+                local.frame = gMarioObject->header.gfx.animInfo.animFrame;
+                local.anim_y = gMarioObject->header.gfx.animInfo.animYTrans;
+                local.anim_accel = gMarioObject->header.gfx.animInfo.animAccel;
+            }
+            /* Publish absence during unloading/file select instead of leaving a
+             * stationary phantom at the previous position for three seconds. */
             lan_net_send_player(&local);
         }
+        if (lan_net_status() == LAN_NET_RECONNECTING && gMarioObject != NULL)
+            print_text_centered(160, 20, "RECONNECTING");
         if (lan_net_status() == LAN_NET_ERROR && gMarioObject != NULL)
             print_text_centered(160, 20, "CONNECTION LOST");
 #endif

@@ -1,7 +1,7 @@
 #ifndef SM64_ANDROID_NETPLAY_LAN_H
 #define SM64_ANDROID_NETPLAY_LAN_H
 #include <stdint.h>
-enum LanNetStatus { LAN_NET_OFF, LAN_NET_SEARCHING, LAN_NET_PAIRED, LAN_NET_ERROR };
+enum LanNetStatus { LAN_NET_OFF, LAN_NET_SEARCHING, LAN_NET_PAIRED, LAN_NET_ERROR, LAN_NET_RECONNECTING };
 enum LanTransport { LAN_TRANSPORT_WIFI, LAN_TRANSPORT_DIRECT };
 struct LanPlayerState {
     float x, y, z;
@@ -25,6 +25,7 @@ void lan_net_tick(void);
 int lan_net_status(void);
 int lan_net_is_host(void);
 void lan_net_set_ready(void);
+int lan_net_ready_mask(void);
 int lan_net_both_ready(void);
 const char *lan_net_detail(void);
 void lan_net_send_player(const struct LanPlayerState *state);

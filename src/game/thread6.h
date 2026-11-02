@@ -1,7 +1,7 @@
 #ifndef THREAD6_H
 #define THREAD6_H
 
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(__ANDROID__)
 
 extern s32 gRumblePakTimer;
 
@@ -18,6 +18,6 @@ void cancel_rumble(void);
 void create_thread_6(void);
 void rumble_thread_update_vi(void);
 
-#endif // VERSION_SH
+#endif // Shindou or Android feedback
 
 #endif // THREAD6_H

@@ -23,13 +23,16 @@
 #include <arpa/inet.h>
 #include <time.h>
 #include <unistd.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
 
 #define LAN_PORT 45565
 #define LAN_PACKET_SIZE 112
 #define LAN_PROTOCOL_VERSION 2
 #define LAN_DISCOVER_INTERVAL 1000
 #define LAN_KEEPALIVE_INTERVAL 500
-#define LAN_TIMEOUT_FRAMES 10000
+#define LAN_RECONNECT_AFTER_MS 5000
+#define LAN_TIMEOUT_MS 30000
 #define LAN_PEER_STATE_MAX_AGE 3000
 #define LAN_RX_MAX_PER_TICK 24
 
@@ -42,6 +45,7 @@ enum LanPacketType {
 
 static int sSocket = -1;
 static int sStatus = LAN_NET_OFF;
+static const char *sError;
 static int sHost;
 static int sTransport;
 static int sOwnReady, sPeerReady;
@@ -170,6 +174,7 @@ void lan_net_stop(void) {
     if (sSocket >= 0) close(sSocket);
     sSocket = -1;
     sStatus = LAN_NET_OFF;
+    sError = NULL;
     sHost = 0;
     sOwnNonce = 0;
     sPeerNonce = 0;
@@ -207,7 +212,14 @@ int lan_net_start(int host, int transport) {
 #endif
     if (bind(sSocket, (struct sockaddr *)&bind_address, sizeof(bind_address)) < 0) goto fail;
 
-    sOwnNonce = (uint32_t)time(NULL) ^ ((uint32_t)getpid() << 16) ^ (uint32_t)(uintptr_t)&sSocket;
+    /* A retry within the same second must not reuse the previous session token. */
+    {
+        struct timespec stamp;
+        static uint32_t attempt;
+        clock_gettime(CLOCK_MONOTONIC, &stamp);
+        sOwnNonce = (uint32_t)stamp.tv_nsec ^ (uint32_t)stamp.tv_sec
+                  ^ ((uint32_t)getpid() << 16) ^ (++attempt * 0x9E3779B9u);
+    }
     if (sOwnNonce == 0) sOwnNonce = 1;
     sHost = host;
     sTransport = transport;
@@ -217,6 +229,7 @@ int lan_net_start(int host, int transport) {
 fail:
     lan_net_stop();
     sStatus = LAN_NET_ERROR;
+    sError = "UDP SOCKET ERROR";
     return -1;
 }
 
@@ -225,9 +238,33 @@ int lan_net_start_join(void) { return lan_net_start(0, LAN_TRANSPORT_WIFI); }
 int lan_net_status(void) { return sStatus; }
 int lan_net_is_host(void) { return sHost; }
 void lan_net_set_ready(void) { sOwnReady = 1; sLastKeepalive = 0; }
+int lan_net_ready_mask(void) { return sOwnReady | (sPeerReady << 1); }
 int lan_net_both_ready(void) { return sStatus == LAN_NET_PAIRED && sOwnReady && sPeerReady; }
 const char *lan_net_detail(void) {
+    if (sError) return sError;
+    if (sStatus == LAN_NET_RECONNECTING) return "RECONNECTING SAME SESSION";
     return sTransport == LAN_TRANSPORT_DIRECT ? net_direct_detail() : "SAME WIFI OR HOTSPOT";
+}
+
+static void discover_on_interfaces(void) {
+    struct ifreq interfaces[32];
+    struct ifconf config;
+    size_t i;
+    memset(&config, 0, sizeof(config));
+    config.ifc_len = sizeof(interfaces);
+    config.ifc_req = interfaces;
+    if (ioctl(sSocket, SIOCGIFCONF, &config) < 0) return;
+    for (i = 0; i < (size_t)config.ifc_len / sizeof(struct ifreq); ++i) {
+        struct ifreq interface = interfaces[i];
+        struct sockaddr_in address;
+        if (ioctl(sSocket, SIOCGIFFLAGS, &interface) < 0
+            || !(interface.ifr_flags & IFF_UP) || !(interface.ifr_flags & IFF_BROADCAST)
+            || (interface.ifr_flags & IFF_LOOPBACK)) continue;
+        if (ioctl(sSocket, SIOCGIFBRDADDR, &interface) < 0 || interface.ifr_broadaddr.sa_family != AF_INET) continue;
+        memcpy(&address, &interface.ifr_broadaddr, sizeof(address));
+        address.sin_port = htons(LAN_PORT);
+        send_packet(&address, LAN_HELLO, NULL);
+    }
 }
 
 void lan_net_tick(void) {
@@ -237,7 +274,8 @@ void lan_net_tick(void) {
     ssize_t n;
     int count;
 
-    if (sStatus != LAN_NET_SEARCHING && sStatus != LAN_NET_PAIRED) return;
+    if (sStatus != LAN_NET_SEARCHING && sStatus != LAN_NET_PAIRED
+        && sStatus != LAN_NET_RECONNECTING) return;
     sTick = now_ms();
     if (sTransport == LAN_TRANSPORT_DIRECT) {
         int direct = net_direct_status();
@@ -251,6 +289,7 @@ void lan_net_tick(void) {
         if (n < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) break;
             sStatus = LAN_NET_ERROR;
+            sError = "UDP RECEIVE ERROR";
             return;
         }
         if (n != LAN_PACKET_SIZE || memcmp(buf, "SM64", 4) != 0
@@ -277,12 +316,13 @@ void lan_net_tick(void) {
             sPeerReady = buf[6] != 0;
             continue;
         }
-        if (sStatus != LAN_NET_PAIRED || !same_peer(&src)
+        if ((sStatus != LAN_NET_PAIRED && sStatus != LAN_NET_RECONNECTING) || !same_peer(&src)
             || read32(buf + 8) != sPeerNonce || read32(buf + 36) != sOwnNonce) continue;
         sPeerReady |= buf[6] != 0;
         if (buf[5] == LAN_KEEPALIVE || buf[5] == LAN_PLAYER_STATE) {
             int i;
             sLastPeerTick = sTick;
+            sStatus = LAN_NET_PAIRED;
             /* Monotonic progress and the latest host warp are retransmitted in
              * every heartbeat/state packet. Duplicates and loss are harmless. */
             for (i = 0; i < LAN_PROGRESS_COURSES; ++i) sStars[i] |= buf[68 + i] & 0x7F;
@@ -340,16 +380,22 @@ void lan_net_tick(void) {
         }
         sLastDiscover = sTick;
         send_packet(&broadcast, LAN_HELLO, NULL);
-    } else if (sStatus == LAN_NET_PAIRED) {
-        if (sTick - sLastPeerTick > LAN_TIMEOUT_FRAMES) {
+        // Android may route 255.255.255.255 through a different interface.
+        if (sTransport == LAN_TRANSPORT_WIFI) discover_on_interfaces();
+    } else if (sStatus == LAN_NET_PAIRED || sStatus == LAN_NET_RECONNECTING) {
+        if (sTick - sLastPeerTick > LAN_TIMEOUT_MS) {
             sStatus = LAN_NET_ERROR;
+            sError = "CONNECTION TIMEOUT";
             sPeerNonce = 0;
             sHavePeerState = 0;
             sOwnReady = sPeerReady = 0;
             memset(&sPeerAddress, 0, sizeof(sPeerAddress));
-        } else if ((sLastKeepalive == 0 || sTick - sLastKeepalive >= LAN_KEEPALIVE_INTERVAL)) {
-            send_packet(&sPeerAddress, LAN_KEEPALIVE, NULL);
-            sLastKeepalive = sTick;
+        } else {
+            if (sTick - sLastPeerTick > LAN_RECONNECT_AFTER_MS) sStatus = LAN_NET_RECONNECTING;
+            if (sLastKeepalive == 0 || sTick - sLastKeepalive >= LAN_KEEPALIVE_INTERVAL) {
+                send_packet(&sPeerAddress, LAN_KEEPALIVE, NULL);
+                sLastKeepalive = sTick;
+            }
         }
     }
 }
@@ -377,6 +423,7 @@ void lan_net_collect(uint8_t course, uint8_t stars, uint32_t keys) { (void)cours
 void lan_net_progress(uint8_t *stars, uint32_t *keys) { memset(stars, 0, LAN_PROGRESS_COURSES); *keys = 0; }
 int lan_net_start(int host, int transport) { (void)host; (void)transport; return -1; }
 void lan_net_set_ready(void) {}
+int lan_net_ready_mask(void) { return 0; }
 int lan_net_both_ready(void) { return 0; }
 const char *lan_net_detail(void) { return "ANDROID ONLY"; }
 int lan_net_start_host(void) { return -1; }

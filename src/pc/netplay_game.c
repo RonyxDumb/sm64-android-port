@@ -79,7 +79,6 @@ void lan_netplay_object_tick(void) {
                   && gMarioObject != NULL
                   && peer.level == (u8)gCurrLevelNum
                   && peer.area == (u8)gCurrAreaIndex
-                  && peer.act == (u8)gCurrActNum
                   && isfinite(peer.x) && isfinite(peer.y) && isfinite(peer.z)
                   && fabsf(peer.x) < 32768.0f && fabsf(peer.y) < 32768.0f
                   && fabsf(peer.z) < 32768.0f;

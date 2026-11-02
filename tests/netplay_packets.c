@@ -54,7 +54,16 @@ int main(void) {
     write32(packet + 12, 1); write_float(packet + 20, 100);
     inject(peer, packet, LAN_PACKET_SIZE);
     assert(lan_net_read_peer(&state) && state.x == 6.5f); // stale packet
-    sLastPeerTick = now_ms() - LAN_TIMEOUT_FRAMES - 1;
+    lan_net_set_ready();
+    lan_net_collect(1, 4, 1);
+    sLastPeerTick = now_ms() - LAN_RECONNECT_AFTER_MS - 1;
+    lan_net_tick();
+    assert(lan_net_status() == LAN_NET_RECONNECTING);
+    packet[5] = LAN_KEEPALIVE;
+    inject(peer, packet, LAN_PACKET_SIZE);
+    assert(lan_net_status() == LAN_NET_PAIRED && lan_net_ready_mask() == 1);
+    assert(sStars[1] == 4 && sKeys == 1); // reconnect preserves earned progress
+    sLastPeerTick = now_ms() - LAN_TIMEOUT_MS - 1;
     lan_net_tick();
     assert(lan_net_status() == LAN_NET_ERROR && !lan_net_read_peer(&state));
     close(peer); lan_net_stop();
